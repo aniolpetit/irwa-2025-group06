@@ -27,14 +27,14 @@
 
 ## 1. Introduction
 
-This report presents the work completed for **Part 1** of the IRWA (Information Retrieval and Web Analytics) Final Project. The objective of this part is to prepare and analyze a fashion products dataset through comprehensive text processing and exploratory data analysis (EDA).
+This report presents the work completed for **Part 1** of the Final Project of the Information Retrieval and Web Analytics course. The objective of this part is to prepare and analyze a fashion products dataset through comprehensive text processing and exploratory data analysis (EDA).
 
 The work is divided into two main components:
 
-- **Data Preparation:** Loading, cleaning, normalizing, tokenizing, and preprocessing the raw dataset
-- **Exploratory Data Analysis:** Statistical analysis, visualization, and insights extraction
+- **Data Preparation:** Loading, cleaning, normalizing, tokenizing, and preprocessing the raw dataset.
+- **Exploratory Data Analysis:** Statistical analysis, visualization, and insights extraction.
 
-The dataset consists of fashion product listings with fields including title, description, category, price, rating, brand, and other metadata. The goal is to prepare this data for subsequent information retrieval tasks (indexing, searching, ranking) in later parts of the project.
+The dataset consists of fashion product listings with fields including title, description, category, actual and selling price, average rating, brand, and other metadata. The goal is to prepare this data for subsequent information retrieval tasks (indexing, searching, ranking) in later parts of the project.
 
 ---
 
@@ -47,23 +47,26 @@ The raw dataset is provided in JSON format containing fashion product records. E
 **Text fields:**
 - title
 - description
-- category, subcategory
-- product details
-
-**Numeric fields:**
-- price
-- rating
-- number of reviews
-- discount
-
-**Categorical fields:**
+- category, sub_category
 - brand
 - seller
-- color, size, material
+- product_details
 
-**Boolean fields:**
-- out_of_stock
-- availability status
+**Numeric fields:**
+- actual_price
+- average_rating
+- crawled_at (timestamp)
+- discount
+- selling_price
+
+**Categorical fields:**
+- out_of_stock (boolean)
+
+**Other fields:**
+- _id (unique identifier)
+- pid (product identifier)
+- images (URL list)
+- url (product URL)
 
 #### Data Loading Process
 
