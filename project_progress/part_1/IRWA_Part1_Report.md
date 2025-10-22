@@ -226,35 +226,28 @@ Provides an overview of the dataset structure:
 - Missing value counts per field
 - Non-missing value counts
 - Unique value counts for categorical fields
+- Handles both hashable columns and list-type columns (like tokenized fields)
 
-**Key Statistics (Typical):**
-- Dataset size: ~28,000 product records
-- Fields: ~15-20 columns including text, numeric, and categorical
-- Completeness: Most text fields (title, category) are well-populated
-- Missing data: Some optional fields (discount, brand) have missing values
+The function automatically detects column types and provides appropriate statistics for each data type.
 
 ---
 
 ### 3.2 Text Statistics
 
 **Functions:**
-- `text_stats(df, field)`: Compute token distribution statistics
-- `most_common_tokens(df, field, top_n)`: Identify most frequent tokens
+- `text_stats(df, field)`: Compute token distribution statistics for tokenized fields
+- `sentence_stats(df, field)`: Analyze sentence-level statistics for text fields
+- `most_common_tokens(df, field, top_n)`: Identify most frequent tokens in a field
+- `compare_token_stats(df, token_fields)`: Compare token statistics across multiple fields
+- `_ensure_tokens_series(df, field)`: Helper function to safely handle tokenized data
 
 **Metrics Analyzed:**
 - Average tokens per document
 - Median tokens per document
 - Vocabulary size (unique tokens across corpus)
+- Average words per sentence
+- Median words per sentence
 - Token frequency distribution
-
-**Typical Results:**
-- Average document length: 15-30 tokens (after preprocessing)
-- Vocabulary size: 5,000-15,000 unique tokens
-- Top tokens: Fashion-related terms (dress, women, cotton, size, color, etc.)
-- Long tail: Many terms appear only once (hapax legomena)
-
-**Insights:**
-These statistics inform indexing decisions (e.g., minimum term frequency thresholds) and help identify domain-specific vocabulary.
 
 ---
 
@@ -262,60 +255,52 @@ These statistics inform indexing decisions (e.g., minimum term frequency thresho
 
 **Functions:**
 - `numeric_summary(df, field)`: Statistical summary (min, max, mean, median, std)
-- `plot_numeric_hist(df, field)`: Histogram with KDE overlay
-- `plot_price_vs_rating(df)`: Scatter plot for correlation analysis
+- `plot_numeric_hist(df, field)`: Histogram with KDE overlay for smoothness
+- `plot_price_vs_rating(df)`: Scatter plot for correlation analysis between the price and the rating
+- `compute_numeric_correlation(df, numeric_fields)`: Correlation matrix for numeric fields
+- `top_products(df, field, top_n)`: Retrieve top products by a numeric field
 
 **Fields Analyzed:**
-- **Price:** Distribution, range, typical values
-- **Rating:** Customer satisfaction levels
-- **Discount:** Promotion patterns
-- **Number of Reviews:** Product popularity
-
-**Example Insights:**
-- Price distribution is typically right-skewed (most products affordable, some luxury items)
-- Ratings often cluster around 4.0-4.5 stars
-- Discounts range from 0% to 70%, with peaks around common sale percentages (20%, 30%, 50%)
-- Weak correlation between price and rating (expensive ≠ better rated)
+- **Price:** Distribution, range, typical values (selling_price, actual_price)
+- **Rating:** Customer satisfaction levels (average_rating)
+- **Discount:** Promotion patterns (discount percentage)
+- **Availability:** Stock status (out_of_stock)
 
 ---
 
 ### 3.4 Categorical Analysis
 
 **Functions:**
-- `categorical_summary(df, field)`: Value counts and percentages
-- `plot_categorical_bar(df, field)`: Bar chart of top categories
-- `plot_categorical_pie(df, field)`: Pie chart for distribution
+- `categorical_summary(df, field)`: Value counts and percentages with null filtering
+- `plot_categorical_bar(df, field)`: Bar chart of top categories with annotations
+- `plot_categorical_pie(df, field)`: Pie chart for distribution visualization
 
 **Fields Analyzed:**
-- **Category:** Product type distribution (dresses, shirts, shoes, etc.)
+- **Category:** Product type distribution (category, sub_category)
 - **Brand:** Top brands and market share
 - **Seller:** Vendor distribution
-- **Out of Stock:** Availability analysis
+- **Out of Stock:** Availability analysis (boolean field)
 
-**Example Findings:**
-- Categories: Women's clothing dominates, followed by men's and accessories
-- Brands: Mix of well-known brands and private labels
-- Out-of-stock ratio: Typically 5-15% of products
-- Seller concentration: Often dominated by a few large sellers
+The categorical functions include robust filtering to handle null, NaN, and empty string values appropriately.
 
 ---
 
-### 3.5 Optional Advanced Features
+### 3.5 Advanced Features
 
-The EDA notebook also includes optional advanced analysis capabilities:
+**Functions:**
+- `generate_wordcloud(tokens_list, title)`: Visual representation of term frequencies
+- `render_markdown_summary(...)`: Generate formatted summary report
 
-#### 1. Word Clouds (`generate_wordcloud()`)
+**Word Cloud Analysis:**
 - Visual representation of term frequencies
 - Larger words = more frequent terms
 - Useful for quick visual inspection of domain vocabulary
+- Handles empty token lists gracefully
 
-#### 2. Named Entity Recognition (`extract_entities()`)
-- Uses spaCy NLP library to identify entities
-- Extracts: brands, colors, materials, product types
-- Helps understand product attribute distribution
-- Can inform feature engineering for search ranking
-
-These features are guarded by try/except blocks to ensure the notebook works even if optional libraries (wordcloud, spaCy) are not installed.
+**Summary Generation:**
+- Automated markdown report generation
+- Combines statistics from multiple analysis functions
+- Provides formatted output for documentation
 
 ---
 
@@ -323,35 +308,180 @@ These features are guarded by try/except blocks to ensure the notebook works eve
 
 Based on our data preparation and exploratory analysis, we identified the following key findings:
 
-### Data Quality
-- The dataset is generally well-structured with consistent field naming
-- Text fields contain some HTML artifacts and formatting issues (addressed by cleaning)
-- Numeric fields require normalization due to inconsistent formatting
-- Missing values are present but manageable (typically in optional fields)
+### 4.1 Dataset Overview
 
-### Text Characteristics
-- Product titles are concise (5-15 words typically)
-- Descriptions vary widely in length and detail
-- High overlap in vocabulary between similar product categories
-- Domain-specific terms are prevalent (fabric types, sizes, colors)
+**Dataset Statistics:**
+- **Total Records**: 28,080 fashion product records
+- **Total Columns**: 25 fields (including original and processed fields)
+- **Data Completeness**: Most core fields are well-populated with minimal missing values
 
-### Product Catalog Insights
-- Wide price range accommodating budget to luxury segments
-- Rating distribution skewed positive (most products rated 3.5+)
-- Significant seasonal/promotional discounts observed
-- Category imbalance: some categories much more populated than others
 
-### Preprocessing Impact
-- Stopword removal reduces token count by ~30-40%
-- Stemming further reduces vocabulary size by ~20-30%
-- Cleaned text shows improved consistency for IR tasks
-- Token distribution follows Zipf's law (expected for natural language)
+### 4.2 Text Characteristics and Tokenization Impact
 
-### Implications for IR System Design
-- Need robust handling of product attributes (size, color, material)
-- Category-aware search may improve relevance
-- Price and rating filters are essential user features
-- Synonym handling may be beneficial (e.g., "shirt" vs "top")
+**Token Distribution Across Fields:**
+- **Title tokens**: 6.1 avg tokens/doc, 609 unique vocabulary
+- **Description tokens**: 19.7 avg tokens/doc, 4,806 unique vocabulary  
+- **Details tokens**: 40.1 avg tokens/doc, 5,584 unique vocabulary
+- **Category tokens**: 2.0 avg tokens/doc, 7 unique vocabulary
+- **Subcategory tokens**: 1.4 avg tokens/doc, 39 unique vocabulary
+- **Brand tokens**: 1.1 avg tokens/doc, 355 unique vocabulary
+- **Combined tokens**: 70.3 avg tokens/doc, 8,670 unique vocabulary
+
+**Sentence-Level Analysis:**
+- **Title**: 6.7 avg words/sentence, 7.0 median words/sentence
+- **Description**: 50.3 avg words/sentence, 40.0 median words/sentence
+
+
+**Key Insights:**
+- Product details contain the most information (40.1 tokens average)
+- Titles are concise but informative (6.1 tokens average)
+- Combined tokenization provides comprehensive coverage (70.3 tokens average)
+- Vocabulary size varies significantly by field type
+
+![alt text](331a2bb3-322c-4c8b-87e9-7b687cc04c2d.png)
+*Figure 4.1: Word cloud visualizations showing most frequent terms in title tokens*
+
+![alt text](8d6726b7-d946-4473-b088-6d1a3bd06d22.png)
+*Figure 4.2: Word cloud visualizations showing most frequent terms in description tokens*
+
+![alt text](8df79ce3-ec22-4e78-9d7f-93bf29d9b13a.png)
+*Figure 4.3: Word cloud visualizations showing most frequent terms in product details tokens*
+
+![alt text](3a96ea41-99a9-4443-8334-1df0fa829ccf.png)
+*Figure 4.4: Word cloud visualizations showing most frequent terms in category tokens*
+
+![alt text](2785f37e-dc25-4683-892f-1465eca538de.png)
+*Figure 4.5: Word cloud visualizations showing most frequent terms in sub category tokens*
+
+![alt text](09fc565f-2260-49c8-a0ae-44122233838c.png)
+*Figure 4.6: Word cloud visualizations showing most frequent terms in brand tokens*
+
+![alt text](37b4598e-c721-4e1e-ae7f-d85c2c5cad7b.png)
+*Figure 4.7: Word cloud visualizations showing most frequent terms in all tokens combined*
+
+
+### 4.3 Numeric Field Analysis
+
+**Price Distribution:**
+- **Selling Price**: min ₹99, max ₹7,999, mean ₹705.64, median ₹545
+- **Actual Price**: min ₹150, max ₹12,999, mean ₹1,455.53, median ₹1,199
+- **Price Range**: Wide distribution accommodating budget to luxury segments
+
+![alt text](b88bf973-bd68-4d38-bf62-b12a3474c00a.png)
+*Figure 4.8: Histogram distribution of selling price*
+
+![alt text](7d9d6fcd-51c5-42d8-af99-ee9a75283d9f.png)
+*Figure 4.9: Histogram distribution of actual price*
+
+![alt text](618d2775-2995-483a-beb8-ea4e29528f2b.png)
+*Figure 4.10: Histogram distribution of discount*
+
+![alt text](8ccecdb0-6ab4-4a74-b1bd-00b17e59767c.png)
+*Figure 4.11: Histogram distribution of average rating*
+
+**Rating Analysis:**
+- **Average Rating**: min 1.0, max 5.0, mean 3.63, median 3.8
+- **Distribution**: Skewed toward positive ratings (most products rated 3.5+)
+- **Standard Deviation**: 0.66 (moderate variation in ratings)
+
+**Discount Patterns:**
+- **Discount Range**: 1% to 87% off
+- **Mean Discount**: 50.26%, median 53%
+- **Standard Deviation**: 16.89%
+- **Pattern**: Significant promotional activity with substantial discounts
+
+![alt text](fb24bc80-9b1a-44ac-a15c-b391f322fced.png)
+*Figure 4.12: Scatter plot showing relationship between selling price and average rating*
+
+![alt text](593fb6c0-12e7-45e2-bbd3-12863504417c.png)
+*Figure 4.12: Correlation matrix of numeric fields*
+
+### 4.4 Categorical Field Analysis
+
+**Brand Distribution:**
+- Mix of well-known brands and private labels
+- Significant brand diversity across the catalog
+- Some brands dominate market share
+
+![alt text](10e3f67a-c90b-43c5-89f6-b4888ccb7e9e.png)
+*Figure 4.13: Bar chart showing top brands by product count*
+
+![alt text](48912e07-7eb2-415a-b09a-180047410f8a.png)
+*Figure 4.14: Pie chart showing brand market share distribution*
+
+**Category Analysis:**
+- **Category**: 7 unique categories with varying distribution
+- **Subcategory**: 39 unique subcategories providing detailed classification
+- **Pattern**: Some categories significantly more populated than others
+
+![alt text](0d769d0e-ecd5-4595-81be-f36c6c743b9d.png)
+![alt text](97ed520f-8082-4a52-9da3-b1041970954e.png)
+*Figure 4.15: Category distribution charts*
+
+
+![alt text](55ce3ea7-e159-4397-8998-7f1b9f75c215.png)
+![alt text](e4bf82d7-79c3-4c60-a24a-bbae6f5dcb63.png)
+*Figure 4.16: Sub category distribution charts*
+
+**Seller Analysis:**
+- Vendor distribution shows concentration patterns
+- Mix of large and small sellers
+- Some sellers dominate product offerings
+
+![alt text](3ba5e98e-8889-48da-9a5b-0917acaf841f.png)
+![alt text](0c5a07a0-9d91-4179-a08b-33586dd70390.png)
+*Figure 4.17: Seller distribution analysis*
+
+**Stock Availability:**
+- **Out-of-stock ratio**: Calculated from boolean field analysis
+- **Pattern**: Manageable stock levels with some seasonal variations
+
+### 4.5 Preprocessing Impact Assessment
+
+**Vocabulary Reduction:**
+- **Total Vocabulary**: 8,670 unique tokens across combined text
+- **Field-Specific Vocabularies**: Range from 7 (categories) to 5,584 (details)
+- **Efficiency**: Significant vocabulary reduction through stemming and stopword removal
+
+**Token Distribution:**
+- **Average Document Length**: 70.3 tokens per document (combined)
+- **Field Balance**: Good distribution across different field types
+- **Zipf's Law**: Token frequency distribution follows expected natural language patterns
+
+### 4.6 Top Products Analysis
+
+**High-Value Products:**
+- Products with highest selling prices identified
+- Luxury segment products clearly distinguished
+- Price-quality relationship analysis possible
+
+
+**Highly-Rated Products:**
+- Products with highest average ratings identified
+- Quality indicators for recommendation systems
+- Customer satisfaction patterns
+
+
+### 4.7 Implications for IR System Design
+
+**Search Strategy Recommendations:**
+1. **Field-Specific Weighting**: Different fields require different importance weights
+2. **Category-Aware Search**: Leverage category and subcategory for improved relevance
+3. **Price and Rating Filters**: Essential user features for product discovery
+4. **Brand Recognition**: Important for brand-specific queries
+5. **Synonym Handling**: Beneficial for fashion terminology (e.g., "shirt" vs "top")
+
+**Indexing Considerations:**
+- Minimum term frequency thresholds informed by vocabulary analysis
+- Field-specific indexing strategies based on token distribution
+- Numeric field handling for range queries and sorting
+- Categorical field optimization for faceted search
+
+**Quality Assurance:**
+- All 28,080 records successfully processed without errors
+- Original field values preserved alongside processed versions
+- Numeric fields properly normalized for computational operations
+- Token distribution provides good balance between detail and efficiency
 
 ---
 
