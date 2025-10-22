@@ -48,7 +48,8 @@ The raw dataset is provided in JSON format containing fashion product records. T
 - pid (product identifier)
 - title
 - description
-- category, sub_category
+- category
+- sub_category
 - brand
 - seller
 - product_details
@@ -171,31 +172,7 @@ Our separate field indexing ensures that these query components can be matched w
 
 #### 2.4.4 Record Processing Pipeline
 
-The complete record processing follows this sequence:
-
-```python
-def preprocess_record(record: Dict[str, Any]) -> Dict[str, Any]:
-    # 1. Normalize numeric fields (preserve for range queries)
-    rec = normalize_numeric_fields(record)
-    
-    # 2. Clean all text fields
-    title = clean_text(rec.get('title', ''))
-    description = clean_text(rec.get('description', ''))
-    # ... other fields ...
-    
-    # 3. Generate field-specific tokens (for flexible weighting)
-    title_tokens = preprocess_text(title)
-    brand_tokens = preprocess_text(brand)
-    category_tokens = preprocess_text(category)
-    # ... other field tokens ...
-    
-    # 4. Generate combined tokens (for full-text fallback)
-    full_text = ' '.join([title, description, category, subcategory, brand, seller, details])
-    tokens = preprocess_text(full_text)
-    
-    # 5. Return enhanced record with both numeric and tokenized fields
-    return rec
-```
+The complete record processing follows the sequence seen in the function `preprocess_record()`:
 
 **Output Structure:**
 - **Original fields**: Preserved for display and metadata
@@ -216,15 +193,6 @@ The preprocessing pipeline was successfully applied to the complete dataset with
 - **Enhanced Fields**: 25 columns (added tokenized versions and cleaned text)
 - **Average Tokens per Document**: 68.94 tokens (after full preprocessing)
 - **Total Unique Vocabulary**: 8,668 unique tokens across the entire corpus
-
-**Field Processing Results:**
-
-| Field Type | Fields Processed | Processing Method | Output |
-|------------|------------------|-------------------|---------|
-| **Text Fields** | title, description, category, sub_category, brand, seller, product_details | Clean → Tokenize → Remove Stopwords → Stem | Cleaned text + tokenized lists |
-| **Numeric Fields** | selling_price, actual_price, discount, average_rating | Normalize → Convert to proper types | Numeric values for range queries |
-| **Boolean Fields** | out_of_stock | Convert to boolean | Boolean values for filtering |
-| **Metadata** | pid, url, images, crawled_at | Preserved as-is | Original values maintained |
 
 **Tokenization Impact:**
 - **Vocabulary Reduction**: From raw text to 8,668 unique tokens (significant reduction through stemming and stopword removal)
