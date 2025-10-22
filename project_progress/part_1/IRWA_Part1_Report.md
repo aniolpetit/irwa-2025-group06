@@ -42,64 +42,45 @@ The dataset consists of fashion product listings with fields including title, de
 
 ### 2.1 Dataset Overview
 
-The raw dataset is provided in JSON format containing fashion product records. Each record includes:
+The raw dataset is provided in JSON format containing fashion product records. The `inspect_data()` function of [IRWA_Part1_Preparation.ipynb](IRWA_Part1_Preparation.ipynb) displays the basic characteristics of the dataset for initial inspection, although a more thorough examination is performed in [IRWA_Part1_EDA.ipynb](IRWA_Part1_EDA.ipynb). Each record includes:
 
-**Text fields:**
+- _id (unique identifier)
+- pid (product identifier)
 - title
 - description
 - category, sub_category
 - brand
 - seller
 - product_details
-
-**Numeric fields:**
 - actual_price
 - average_rating
 - crawled_at (timestamp)
 - discount
 - selling_price
-
-**Categorical fields:**
 - out_of_stock (boolean)
-
-**Other fields:**
-- _id (unique identifier)
-- pid (product identifier)
 - images (URL list)
 - url (product URL)
 
+
 #### Data Loading Process
 
-We implemented a robust loader (`load_data()`) that automatically detects and handles both JSON array format and JSON Lines (JSONL) format. This ensures compatibility regardless of how the dataset is structured.
-
-```python
-def load_data(file_path: str | Path) -> pd.DataFrame:
-    p = Path(file_path)
-    with p.open('r', encoding='utf-8') as f:
-        first = f.read(1)
-        f.seek(0)
-        if first == '[':
-            data = json.load(f)  # JSON array
-        else:
-            data = [json.loads(line) for line in f if line.strip()]  # JSONL
-    return pd.DataFrame(data)
-```
+We implemented a loader function (`load_data()`) that automatically detects and handles both JSON array format and JSON Lines (JSONL) format. This ensures compatibility regardless of how the dataset is structured.
 
 ---
 
 ### 2.2 Text Cleaning and Normalization
 
-Text cleaning is crucial for effective information retrieval. We implemented a comprehensive `clean_text()` function that performs the following operations:
+Text cleaning is crucial for effective information retrieval. We implemented a `clean_text()` function that performs the following operations:
 
 #### 1. HTML Processing
-- Unescape HTML entities (`&amp;`, `&lt;`, `&quot;`, etc.)
+- Convert encoded characters like `&amp;`, `&lt;`, `&quot;` back to their normal symbols (`&`, `<`, `"`)
 - Remove HTML tags using BeautifulSoup
 
 #### 2. Case Normalization
 - Convert all text to lowercase for consistency
 
 #### 3. Unicode Normalization
-- Apply NFKC normalization to handle special characters and diacritics
+- Standardize Unicode characters so visually similar ones become the same (e.g., convert accented letters like “é” to “e”, turn curly quotes into straight quotes)
 
 #### 4. Content Filtering
 - Remove URLs (`http://`, `www.`)
@@ -107,93 +88,159 @@ Text cleaning is crucial for effective information retrieval. We implemented a c
 - Remove digits (numbers are generally not useful for text search)
 - Collapse multiple whitespace into single spaces
 
-**Rationale:** These steps ensure that the text is in a consistent, normalized form that improves the quality of tokenization and reduces noise in the vocabulary.
-
-```python
-def clean_text(text: str) -> str:
-    # Unescape HTML and strip tags
-    text = html.unescape(text)
-    text = BeautifulSoup(text, "html.parser").get_text(separator=" ")
-    
-    # Lowercase
-    text = text.lower()
-    
-    # Remove URLs
-    text = re.sub(r"http\S+|www\S+", " ", text)
-    
-    # Remove punctuation, digits, and non-alphabetic characters
-    text = re.sub(r"[^a-z\s]", " ", text)
-    
-    # Collapse multiple spaces
-    text = re.sub(r"\s+", " ", text).strip()
-    
-    return text
-```
+These steps ensure that the text is in a consistent, normalized form that improves the quality of tokenization and reduces noise in the vocabulary.
 
 ---
 
 ### 2.3 Tokenization and Text Processing
 
-After cleaning, we apply a multi-stage text processing pipeline:
+After cleaning, we apply a multi-step text processing pipeline:
 
 #### 1. Tokenization (`tokenize_text()`)
 - Split cleaned text into individual word tokens
-- Extract only alphanumeric sequences
 
 #### 2. Stopword Removal (`remove_stopwords()`)
-- Remove common English stopwords (a, the, and, or, for, in, to, etc.)
-- Stopwords are high-frequency words with little semantic value
-- We use NLTK's standard English stopword list plus custom additions
+- Stopwords are high-frequency words with little semantic value. Hence, we remove common English stopwords (a, the, and, or, for, in, to, etc.)
+- We use NLTK's standard English stopword list
 
 #### 3. Stemming (`stem_tokens()`)
-- Apply Porter Stemmer or Snowball Stemmer to reduce words to their root form
+- Apply Snowball Stemmer to reduce words to their root form
 - Examples:
   - "running" → "run"
   - "computers" → "comput"
   - "buying" → "buy"
-- Reduces vocabulary size and improves recall in search
+- This reduces vocabulary size and improves recall in search
 
 #### 4. Integrated Pipeline (`preprocess_text()`)
 - Combines all steps into a single function
 - **Input:** raw text string
 - **Output:** list of processed tokens ready for indexing
 
-#### Example Transformation:
+Below is an example illustrating our tokenization and text processing pipeline:
 
-| Stage | Output |
-|-------|--------|
-| **Raw** | "Women's Running Shoes - Premium Quality, 50% OFF!" |
-| **Cleaned** | "women s running shoes premium quality off" |
-| **Tokenized** | ["women", "s", "running", "shoes", "premium", "quality", "off"] |
-| **After stopwords** | ["women", "running", "shoes", "premium", "quality"] |
-| **After stemming** | ["women", "run", "shoe", "premium", "qualiti"] |
+`PID`: TSHFPVNSNGEGH7EM
+- **Raw**: Typography Men Round Neck Multicolor T-Shirt.
+- **Cleaned**: typography men round neck multicolor t shirt
+- **Tokens**: `['typographi', 'men', 'round', 'neck', 'multicolor', 'shirt']` 
+
+`PID`: TKPFZKWAH2WAGYZ4
+- **Raw**: Solid Women Blue Track Pants.
+- **Cleaned**: solid women blue track pants
+- **Tokens**: `['solid', 'women', 'blue', 'track', 'pant'] `
 
 ---
 
-### 2.4 Record-Level Preprocessing
+### 2.4 Field Handling Strategy and Justification
 
-We process each product record through the following stages:
+#### 2.4.1 Handling category, sub_category, brand, product_details, and seller
 
-#### 1. Numeric Field Normalization (`normalize_numeric_fields()`)
-- Convert string representations of numbers to proper numeric types
-- Handle currency symbols (€, $), commas, and formatting
-- Fields processed: price, rating, num_reviews, discount
+We adopt a hybrid strategy that reflects how different product attributes are typically used in search.
 
-#### 2. Product Details Flattening (`preprocess_product_details()`)
-- Many products have nested detail structures (color, material, size)
-- Flatten nested dictionaries and lists into clean text
-- Combine key-value pairs into searchable text
+Specifically, we generate separate token lists for `title`, `brand`, `category`, `sub_category`, and `product_details` so they can be weighted differently at query time.
+In addition, we keep a combined `full_text` field that concatenates `title`, `description`, `category`, `sub_category`, `brand`, `seller`, and `product_details`, which serves as a fallback for general or unstructured queries.
+The `seller` text is preserved and remains available for exact filtering if needed, but we do not create a dedicated token list for it.
 
-#### 3. Full Record Processing (`preprocess_record()`)
-- Apply text cleaning to all text fields
-- Combine title, description, category, subcategory, and details
-- Generate final token list for the entire product
-- Store both cleaned text and tokens for flexibility
+This approach recognizes that each field carries different information about a product. Categories and subcategories describe the type of item, brands often capture user intent (for instance, when searching for “Nike shoes”), and product details provide technical or descriptive attributed such as color, material, or fit. By keeping these fields separate, we can assign appropriate weights depending on the type of query, while the combined `full_text` ensures coverage for broader or mixed queries. This design improves the accuracy of retrieval when users focus on a specific aspect (such as brand, category, or detailed specifications) while still performing well for more general searches.
 
-#### 4. Corpus Processing (`preprocess_corpus()`)
-- Apply record processing to entire DataFrame
-- Efficient batch processing using pandas apply
-- Generate processed dataset ready for indexing and analysis
+We also considered alternative designs. Merging all text into a single field would simplify implementation and reduce indexing costs, but it would eliminate useful structure and make it difficult to prioritize relevant attributes, likely reducing precision. Conversely, relying only on separate fields would provide more control and higher precision but could fail to retrieve results when query terms appear across different fields. Our hybrid solution strikes a balance between these extremes: it introduces some additional complexity and storage requirements, but consistently achieves better retrieval performance across different query types.
+
+#### 2.4.2 Numeric Fields Strategy
+
+For `out_of_stock`, `selling_price`, `discount`, `actual_price`, and `average_rating`, we treat them as true numeric/boolean values rather than text. To ensure consistency and enable proper filtering, sorting, and ranking operations, we apply a dedicated preprocessing function `normalize_numeric_fields` that standardizes these attributes across all records.
+
+For price-related fields (`selling_price`, `actual_price`)the function removes thousands separators, currency symbols, and any non-numeric characters before converting the result to either an integer or float, depending on the presence of a decimal point. The `discount` field is normalized by extracting numeric characters from strings such as “69% off” and converting them into integer percentages. The `average_rating` field is parsed as a floating-point value, accommodating both dot and comma decimal separators. Finally, the `out_of_stock` attribute is explicitly cast to a boolean type to ensure consistent logical handling.
+
+This normalization process enables accurate numeric comparisons and operations such as range queries (e.g., “price under 50”, “rating ≥ 4.0”), sorting (e.g., by lowest price or highest rating), and filtering (e.g., only available products). Indexing these fields as text is avoided, since string-based matching on numeric data is unreliable and inefficient. The original raw values are preserved for display purposes, but all retrieval and ranking computations rely on the normalized numeric representations.
+
+
+#### 2.4.3 Validation Context Integration
+
+The `validation_labels.csv` provides crucial insights for our preprocessing strategy:
+
+**Query Analysis:**
+- `query_1`: "women full sleeve sweatshirt cotton"
+- `query_2`: "men slim jeans blue"
+
+**Preprocessing Alignment:**
+1. **Category Matching**: "women"/"men" → `category_tokens` for precise gender targeting
+2. **Product Details**: "full sleeve", "slim" → `details_tokens` for style specifications  
+3. **Material/Color**: "cotton", "blue" → `details_tokens` for material and color attributes
+4. **Product Type**: "sweatshirt", "jeans" → `category_tokens` for product classification
+
+Our separate field indexing ensures that these query components can be matched with appropriate field weights during retrieval, improving precision and recall.
+
+#### 2.4.4 Record Processing Pipeline
+
+The complete record processing follows this sequence:
+
+```python
+def preprocess_record(record: Dict[str, Any]) -> Dict[str, Any]:
+    # 1. Normalize numeric fields (preserve for range queries)
+    rec = normalize_numeric_fields(record)
+    
+    # 2. Clean all text fields
+    title = clean_text(rec.get('title', ''))
+    description = clean_text(rec.get('description', ''))
+    # ... other fields ...
+    
+    # 3. Generate field-specific tokens (for flexible weighting)
+    title_tokens = preprocess_text(title)
+    brand_tokens = preprocess_text(brand)
+    category_tokens = preprocess_text(category)
+    # ... other field tokens ...
+    
+    # 4. Generate combined tokens (for full-text fallback)
+    full_text = ' '.join([title, description, category, subcategory, brand, seller, details])
+    tokens = preprocess_text(full_text)
+    
+    # 5. Return enhanced record with both numeric and tokenized fields
+    return rec
+```
+
+**Output Structure:**
+- **Original fields**: Preserved for display and metadata
+- **Numeric fields**: Cleaned and typed for queries
+- **Field-specific tokens**: For weighted search
+- **Combined tokens**: For full-text search
+- **Cleaned text**: For display and analysis
+
+This approach provides maximum flexibility for the subsequent indexing and search phases while maintaining data integrity and supporting various query types.
+
+#### 2.4.5 Preprocessing Results and Statistics
+
+The preprocessing pipeline was successfully applied to the complete dataset with the following results:
+
+**Dataset Statistics:**
+- **Total Records**: 28,080 fashion product records
+- **Original Fields**: 17 columns (including metadata, URLs, and timestamps)
+- **Enhanced Fields**: 25 columns (added tokenized versions and cleaned text)
+- **Average Tokens per Document**: 68.94 tokens (after full preprocessing)
+- **Total Unique Vocabulary**: 8,668 unique tokens across the entire corpus
+
+**Field Processing Results:**
+
+| Field Type | Fields Processed | Processing Method | Output |
+|------------|------------------|-------------------|---------|
+| **Text Fields** | title, description, category, sub_category, brand, seller, product_details | Clean → Tokenize → Remove Stopwords → Stem | Cleaned text + tokenized lists |
+| **Numeric Fields** | selling_price, actual_price, discount, average_rating | Normalize → Convert to proper types | Numeric values for range queries |
+| **Boolean Fields** | out_of_stock | Convert to boolean | Boolean values for filtering |
+| **Metadata** | pid, url, images, crawled_at | Preserved as-is | Original values maintained |
+
+**Tokenization Impact:**
+- **Vocabulary Reduction**: From raw text to 8,668 unique tokens (significant reduction through stemming and stopword removal)
+- **Document Length**: Average 68.94 tokens per document provides good balance between detail and conciseness
+- **Field Distribution**: Separate tokenization allows for field-specific weighting in future search phases
+
+**Quality Assurance:**
+- All 28,080 records successfully processed without errors
+- PID field preserved for evaluation purposes (as required)
+- Original field values maintained alongside processed versions
+- Numeric fields properly normalized for range queries and sorting
+
+**Storage Efficiency:**
+- Hybrid approach provides both field-specific and combined tokenization
+- Enables flexible querying strategies in subsequent phases
+- Maintains backward compatibility with original data structure
 
 ---
 
