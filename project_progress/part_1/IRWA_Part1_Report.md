@@ -313,7 +313,7 @@ Based on our data preparation and exploratory analysis, we identified the follow
 **Dataset Statistics:**
 - **Total Records**: 28,080 fashion product records
 - **Total Columns**: 25 fields (including original and processed fields)
-- **Data Completeness**: Most core fields are well-populated with minimal missing values
+- **Data Completeness**: Most core fields are well-populated with minimal missing values. We can highlight `average_rating` as the field with the most missing values, with an 8% missing.
 
 
 ### 4.2 Text Characteristics and Tokenization Impact
@@ -327,74 +327,83 @@ Based on our data preparation and exploratory analysis, we identified the follow
 - **Brand tokens**: 1.1 avg tokens/doc, 355 unique vocabulary
 - **Combined tokens**: 70.3 avg tokens/doc, 8,670 unique vocabulary
 
+This distribution shows that most textual richness comes from the product details and descriptions, which contribute the largest vocabularies and token counts, while category, subcategory, and brand fields are concise and highly repetitive, making them useful mainly for filtering rather than semantic retrieval. Titles are also concise but quite informative. 
+
 **Sentence-Level Analysis:**
 - **Title**: 6.7 avg words/sentence, 7.0 median words/sentence
 - **Description**: 50.3 avg words/sentence, 40.0 median words/sentence
 
+Below we show most frequent terms in each token field (greater word size means more frequency). For specific frequency values refer to `IRWA_Part1_EDA.ipynb`.
 
-**Key Insights:**
-- Product details contain the most information (40.1 tokens average)
-- Titles are concise but informative (6.1 tokens average)
-- Combined tokenization provides comprehensive coverage (70.3 tokens average)
-- Vocabulary size varies significantly by field type
-
-![alt text](331a2bb3-322c-4c8b-87e9-7b687cc04c2d.png)
+![alt text](wc_title.png)
 *Figure 4.1: Word cloud visualizations showing most frequent terms in title tokens*
 
-![alt text](8d6726b7-d946-4473-b088-6d1a3bd06d22.png)
+![alt text](wc_description.png)
 *Figure 4.2: Word cloud visualizations showing most frequent terms in description tokens*
 
-![alt text](8df79ce3-ec22-4e78-9d7f-93bf29d9b13a.png)
+![alt text](wc_details.png)
 *Figure 4.3: Word cloud visualizations showing most frequent terms in product details tokens*
 
-![alt text](3a96ea41-99a9-4443-8334-1df0fa829ccf.png)
+![alt text](wc_category.png)
 *Figure 4.4: Word cloud visualizations showing most frequent terms in category tokens*
 
-![alt text](2785f37e-dc25-4683-892f-1465eca538de.png)
+![alt text](wc_subcategory.png)
 *Figure 4.5: Word cloud visualizations showing most frequent terms in sub category tokens*
 
-![alt text](09fc565f-2260-49c8-a0ae-44122233838c.png)
+![alt text](wc_brand.png)
 *Figure 4.6: Word cloud visualizations showing most frequent terms in brand tokens*
 
-![alt text](37b4598e-c721-4e1e-ae7f-d85c2c5cad7b.png)
+![alt text](wc_all.png)
 *Figure 4.7: Word cloud visualizations showing most frequent terms in all tokens combined*
 
 
 ### 4.3 Numeric Field Analysis
 
 **Price Distribution:**
-- **Selling Price**: min ₹99, max ₹7,999, mean ₹705.64, median ₹545
-- **Actual Price**: min ₹150, max ₹12,999, mean ₹1,455.53, median ₹1,199
-- **Price Range**: Wide distribution accommodating budget to luxury segments
+- **Selling Price**: min: 99, max: 7,999, mean: 705.64, median: 545, std: 549.68
+- **Actual Price**: min: 150, max: 12,999, mean: 1,455.53, median: 1,199, std: 939.98
 
-![alt text](b88bf973-bd68-4d38-bf62-b12a3474c00a.png)
+![alt text](hist_sell_price.png)
+
 *Figure 4.8: Histogram distribution of selling price*
 
-![alt text](7d9d6fcd-51c5-42d8-af99-ee9a75283d9f.png)
+![alt text](hist_actual_price.png)
+
 *Figure 4.9: Histogram distribution of actual price*
 
-![alt text](618d2775-2995-483a-beb8-ea4e29528f2b.png)
-*Figure 4.10: Histogram distribution of discount*
-
-![alt text](8ccecdb0-6ab4-4a74-b1bd-00b17e59767c.png)
-*Figure 4.11: Histogram distribution of average rating*
+Both price distributions show a strong right skew, with most products concentrated in the lower price ranges (selling price peaks around 500-1000, actual price around 1000-1500), indicating the dataset predominantly features affordable fashion items with a long tail of premium products extending to luxury price points.
 
 **Rating Analysis:**
-- **Average Rating**: min 1.0, max 5.0, mean 3.63, median 3.8
-- **Distribution**: Skewed toward positive ratings (most products rated 3.5+)
-- **Standard Deviation**: 0.66 (moderate variation in ratings)
+- min: 1.0, max: 5.0, mean: 3.63, median: 3.8, std: 0.66
+
+![alt text](hist_rating.png)
+
+*Figure 4.10: Histogram distribution of average rating*
+
+The rating distribution reveals a left-skewed pattern with a concentration around 3.5-4.0 stars, suggesting overall customer satisfaction with most products performing above average, while very low ratings (1-2 stars) are relatively rare.
 
 **Discount Patterns:**
 - **Discount Range**: 1% to 87% off
-- **Mean Discount**: 50.26%, median 53%
+- **Mean & Median Discount**: mean: 50.26%, median: 53%
 - **Standard Deviation**: 16.89%
-- **Pattern**: Significant promotional activity with substantial discounts
 
-![alt text](fb24bc80-9b1a-44ac-a15c-b391f322fced.png)
+![alt text](hist_discount.png)
+
+*Figure 4.11: Histogram distribution of discount*
+
+The discount distribution shows a relatively uniform spread across the 30-70% range with a peak around 50-60%, indicating a consistent aggressive pricing strategy across the product catalog, with very few items offered at minimal discounts.
+
+![alt text](scatter_price_rating.png)
+
 *Figure 4.12: Scatter plot showing relationship between selling price and average rating*
 
-![alt text](593fb6c0-12e7-45e2-bbd3-12863504417c.png)
-*Figure 4.12: Correlation matrix of numeric fields*
+The scatter plot reveals no clear linear relationship between selling price and average rating, indicating that customer satisfaction is independent of price point (customers rate products based on quality and value rather than cost alone), with highly-rated products distributed across all price ranges.
+
+![alt text](corr_matrix.png)
+
+*Figure 4.13: Correlation matrix of numeric fields*
+
+The correlation matrix shows a strong positive correlation between actual price and selling price (as expected), while average rating demonstrates weak correlations with price-related fields, confirming that customer satisfaction metrics operate independently from pricing strategies and discount levels.
 
 ### 4.4 Categorical Field Analysis
 
@@ -403,66 +412,70 @@ Based on our data preparation and exploratory analysis, we identified the follow
 - Significant brand diversity across the catalog
 - Some brands dominate market share
 
-![alt text](10e3f67a-c90b-43c5-89f6-b4888ccb7e9e.png)
-*Figure 4.13: Bar chart showing top brands by product count*
+![alt text](bar_brands.png)
 
-![alt text](48912e07-7eb2-415a-b09a-180047410f8a.png)
-*Figure 4.14: Pie chart showing brand market share distribution*
+*Figure 4.14: Bar chart showing top brands by product count*
+
+![alt text](pie_brands.png)
+
+*Figure 4.15: Pie chart showing brand market share distribution*
+
+The brand distribution reveals a fragmented market with several dominant players capturing significant shares, while numerous smaller brands contribute to a long tail, indicating both brand loyalty and competitive diversity within the fashion e-commerce space.
 
 **Category Analysis:**
 - **Category**: 7 unique categories with varying distribution
 - **Subcategory**: 39 unique subcategories providing detailed classification
 - **Pattern**: Some categories significantly more populated than others
 
-![alt text](0d769d0e-ecd5-4595-81be-f36c6c743b9d.png)
-![alt text](97ed520f-8082-4a52-9da3-b1041970954e.png)
-*Figure 4.15: Category distribution charts*
+![alt text](bar_category.png)
+![alt text](pie_category.png)
+
+*Figure 4.16: Category distribution charts*
 
 
-![alt text](55ce3ea7-e159-4397-8998-7f1b9f75c215.png)
-![alt text](e4bf82d7-79c3-4c60-a24a-bbae6f5dcb63.png)
-*Figure 4.16: Sub category distribution charts*
+![alt text](bar_subcategory.png)
+![alt text](pie_subcategory.png)
+
+*Figure 4.17: Sub category distribution charts*
+
+The category distributions show clear concentration patterns, with certain product categories (such as apparel and accessories) dominating the catalog, while the subcategory breakdown reveals more granular specialization, allowing for targeted search and recommendation strategies across diverse fashion segments.
 
 **Seller Analysis:**
 - Vendor distribution shows concentration patterns
 - Mix of large and small sellers
 - Some sellers dominate product offerings
 
-![alt text](3ba5e98e-8889-48da-9a5b-0917acaf841f.png)
-![alt text](0c5a07a0-9d91-4179-a08b-33586dd70390.png)
-*Figure 4.17: Seller distribution analysis*
+![alt text](bar_seller.png)
+![alt text](pie_seller.png)
+
+*Figure 4.18: Seller distribution analysis*
+
+The seller distribution demonstrates a typical marketplace pattern with a few high-volume vendors accounting for the majority of products alongside numerous smaller sellers, suggesting a mix of established retailers and niche boutiques that collectively offer diverse product selections.
 
 **Stock Availability:**
 - **Out-of-stock ratio**: Calculated from boolean field analysis
 - **Pattern**: Manageable stock levels with some seasonal variations
 
-### 4.5 Preprocessing Impact Assessment
+![alt text](out_of_stock.png)
 
-**Vocabulary Reduction:**
-- **Total Vocabulary**: 8,670 unique tokens across combined text
-- **Field-Specific Vocabularies**: Range from 7 (categories) to 5,584 (details)
-- **Efficiency**: Significant vocabulary reduction through stemming and stopword removal
+*Figure 4.19: Out of stock distribution analysis*
 
-**Token Distribution:**
-- **Average Document Length**: 70.3 tokens per document (combined)
-- **Field Balance**: Good distribution across different field types
-- **Zipf's Law**: Token frequency distribution follows expected natural language patterns
+The stock availability distribution shows that the majority of products remain in stock, with a relatively small proportion of out-of-stock items, indicating effective inventory management practices that minimize missed sales opportunities while maintaining a diverse product catalog.
 
-### 4.6 Top Products Analysis
+
+### 4.5 Top Products Analysis
 
 **High-Value Products:**
-- Products with highest selling prices identified
-- Luxury segment products clearly distinguished
-- Price-quality relationship analysis possible
 
+The top 5 products by price range from 9,999 to 12,999 in actual price, all belonging to the "clothing and accessories" category. Interestingly, these luxury items exhibit moderate to good average ratings (2.6 to 4.5 stars), indicating that higher price does not guarantee superior customer satisfaction. The discount patterns on premium products are inconsistent, with some showing significant markdowns (20-40%) while others have no discount data, suggesting varied pricing strategies even within the luxury segment. Notably, one of the most expensive items (9,999, brand "reeb") is currently out of stock despite its low rating of 2.7, possibly indicating either supply chain issues or clearance of underperforming inventory. It is remarkable that 4 out of 5 of these products are out of stock, indicating either that these products are not produced in mass (and hence their exclusivity) or that people love acquiring such high-standing items. 
 
 **Highly-Rated Products:**
-- Products with highest average ratings identified
-- Quality indicators for recommendation systems
-- Customer satisfaction patterns
 
+The top-rated products all achieve perfect 5.0-star ratings but are significantly more affordable than the luxury segment, with actual prices ranging from 770 to 2,799. This reinforces the earlier correlation analysis finding that customer satisfaction is independent of price point (quality and value perception matter more than absolute cost). All highly-rated items also fall within the "clothing and accessories" category, feature diverse brands (col, viking ine, tee bud, true bl), and show varied discount patterns from minimal (7%) to substantial (61%) markdowns. The presence of multiple discount strategies across top-rated products suggests that aggressive discounting is not a prerequisite for achieving excellent customer reviews, and that product quality and meeting customer expectations are the primary drivers of high ratings.
 
-### 4.7 Implications for IR System Design
+### 4.6 Implications for IR System Design
+
+**JO TRAURIA AQUESTA SECCIÓ, SI OPINES IGUAL PERSONA QUE HO ESTÀ LLEGINT FUMA-TE-LA**
 
 **Search Strategy Recommendations:**
 1. **Field-Specific Weighting**: Different fields require different importance weights
@@ -508,14 +521,16 @@ This report documented the comprehensive data preparation and exploratory data a
 - Recognition of domain-specific characteristics
 - Foundations for IR system design decisions
 
-The processed dataset and analysis results are now ready for use in subsequent parts of the project, including:
-- **Part 2:** Indexing and search implementation
-- **Part 3:** Ranking and relevance feedback
-- **Part 4:** Evaluation and optimization
+The processed dataset and analysis results are now ready for use in subsequent parts of the project.
 
 All code is modular, well-documented, and reusable, following software engineering best practices for maintainability and extensibility.
 
+
+AI tools were used to assist in generating the overall structure of main functions and report formatting. However, the code architecture, analytical methodology, and all strategic decisions were designed by the project team. Every AI-generated function was manually revised, debugged, and fine-tuned to ensure correctness and alignment with project requirements. All analytical insights, interpretations, and conclusions represent the team's understanding and work.
+
 ---
+
+**D'AQUÍ FINS AL FINAL PER MI ES POT TREURE TB**
 
 ## Appendix: Code Structure
 
