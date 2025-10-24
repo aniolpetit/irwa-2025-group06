@@ -352,6 +352,8 @@ This distribution shows that most textual richness comes from the product detail
 
 Below we show most frequent terms in each token field (greater word size means more frequency). For specific frequency values refer to `IRWA_Part1_EDA.ipynb`.
 
+
+
 ![alt text](figures/wc_title.png)
 
 *Figure 4.1: Word cloud visualizations showing most frequent terms in title tokens*
@@ -383,6 +385,8 @@ Below we show most frequent terms in each token field (greater word size means m
 ![alt text](figures/wc_all.png)
 
 *Figure 4.8: Word cloud visualizations showing most frequent terms in all tokens combined*
+
+**General Word Cloud Insights:** Title and brand clouds show concise, targeted vocabulary focused on product types and brand names, while description and product details clouds display much richer, diverse terminology including materials and style attributes. Category and subcategory clouds demonstrate the structured nature of fashion classification, with clear categorical boundaries. The combined cloud represents the full semantic landscape of the fashion domain, dominated by common fashion descriptors reflecting the fundamental attributes customers use when searching for fashion items.
 
 
 ### 4.3 Numeric Field Analysis
@@ -419,7 +423,7 @@ The rating distribution reveals a left-skewed pattern with a concentration aroun
 
 *Figure 4.12: Histogram distribution of discount*
 
-The discount distribution shows a relatively uniform spread across the 30-70% range with a peak around 50-60%, indicating a consistent aggressive pricing strategy across the product catalog, with very few items offered at minimal discounts.
+The discount distribution shows a multimodal pattern with distinct peaks around 50% and 60%, and notable valleys around 35-40%, indicating varied pricing strategies across the product catalog. The concentration of products in the 40-70% range suggests aggressive discounting is common, with very few items offered at minimal discounts.
 
 ![alt text](figures/scatter_price_rating.png)
 
@@ -448,7 +452,7 @@ The correlation matrix shows a strong positive correlation between actual price 
 
 *Figure 4.16: Pie chart showing brand market share distribution*
 
-The brand distribution reveals a fragmented market with several dominant players capturing significant shares, while numerous smaller brands contribute to a long tail, indicating both brand loyalty and competitive diversity within the fashion e-commerce space.
+The brand distribution reveals a highly fragmented market with no clear dominant players, as even the top brand holds only 13.0% market share. The relatively even distribution among the top 10 brands (ranging from 6.9% to 13.0%) indicates strong competitive diversity and a lack of market concentration in the fashion e-commerce space.
 
 **Category Analysis:**
 - **Category**: 7 unique categories with varying distribution
@@ -468,7 +472,7 @@ The brand distribution reveals a fragmented market with several dominant players
 
 *Figure 4.18: Sub category distribution charts*
 
-The category distributions show clear concentration patterns, with certain product categories (such as apparel and accessories) dominating the catalog, while the subcategory breakdown reveals more granular specialization, allowing for targeted search and recommendation strategies across diverse fashion segments.
+The category distributions show clear concentration patterns, with certain product categories (such as clothing and accessories) dominating the catalog. However, the subcategory breakdown reveals extreme concentration, with "topwear" accounting for 55.0% of products, followed distantly by "bottomwear" (13.2%) and "winter wear" (9.0%), indicating a highly skewed distribution toward upper body clothing rather than diverse fashion segments.
 
 **Seller Analysis:**
 - Vendor distribution shows concentration patterns
