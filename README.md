@@ -12,7 +12,7 @@
 
 ### What is Part 1?
 
-Part 1 focuses on preparing a fashion products dataset (28,080 records) for information retrieval tasks. It includes:
+Part 1 focuses on preparing a fashion products dataset for information retrieval tasks. It includes:
 
 1. **Data Preprocessing**: Cleaning text, tokenization, stopword removal, stemming
 2. **Exploratory Data Analysis**: Statistical analysis and visualizations of the dataset
@@ -51,10 +51,5 @@ jupyter notebook IRWA_Part1_EDA.ipynb
 ### Output Files
 - **`data/processed_corpus.json`**: Preprocessed dataset ready for search
 - **`figures/`**: 23 visualization files (histograms, bar charts, word clouds, etc.)
-
-### Key Functions Available
-- **Preprocessing**: `clean_text()`, `tokenize_text()`, `remove_stopwords()`, `stem_tokens()`
-- **Analysis**: `text_stats()`, `numeric_summary()`, `categorical_summary()`
-- **Visualization**: `plot_numeric_hist()`, `generate_wordcloud()`, `plot_categorical_bar()`
 
 For detailed documentation, see `project_progress/part_1/IRWA_Part1_Report.md`, also attached in Aula Global's task.
