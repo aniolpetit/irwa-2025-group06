@@ -281,8 +281,7 @@ The function automatically detects column types and provides appropriate statist
 **Fields Analyzed:**
 - **Price:** Distribution, range, typical values (selling_price, actual_price)
 - **Rating:** Customer satisfaction levels (average_rating)
-- **Discount:** Promotion patterns (discount percentage)
-- **Availability:** Stock status (out_of_stock)
+- **Discount:** Promotion patterns (discount)
 
 ---
 
@@ -297,7 +296,7 @@ The function automatically detects column types and provides appropriate statist
 - **Category:** Product type distribution (category, sub_category)
 - **Brand:** Top brands and market share
 - **Seller:** Vendor distribution
-- **Out of Stock:** Availability analysis (boolean field)
+- **Out of Stock:** Availability analysis (out_of_stock boolean field)
 
 The categorical functions include robust filtering to handle null, NaN, and empty string values appropriately.
 
@@ -305,17 +304,13 @@ The categorical functions include robust filtering to handle null, NaN, and empt
 
 ### 3.5 Advanced Features
 
-**Functions:**
-- `generate_wordcloud(tokens_list, title)`: Visual representation of term frequencies
-- `render_markdown_summary(...)`: Generate formatted summary report
-
-**Word Cloud Analysis:**
+**Word Cloud Analysis (`generate_wordcloud(tokens_list, title)`):**
 - Visual representation of term frequencies
 - Larger words = more frequent terms
 - Useful for quick visual inspection of domain vocabulary
 - Handles empty token lists gracefully
 
-**Summary Generation:**
+**Summary Generation (`render_markdown_summary(...)`):**
 - Automated markdown report generation
 - Combines statistics from multiple analysis functions
 - Provides formatted output for documentation
@@ -338,7 +333,7 @@ Based on our data preparation and exploratory analysis, we identified the follow
 
 **Token Distribution Across Fields:**
 - **Title tokens**: 6.1 avg tokens/doc, 609 unique vocabulary
-- **Description tokens**: 19.7 avg tokens/doc, 4,806 unique vocabulary  
+- **Description tokens**: 18.3 avg tokens/doc, 4,402 unique vocabulary  
 - **Details tokens**: 40.1 avg tokens/doc, 5,584 unique vocabulary
 - **Seller tokens**: 1.4 avg tokens/doc, 601 unique vocabulary
 - **Category tokens**: 2.0 avg tokens/doc, 7 unique vocabulary
@@ -353,8 +348,6 @@ This distribution shows that most textual richness comes from the product detail
 - **Description**: 50.3 avg words/sentence, 40.0 median words/sentence
 
 Below we show most frequent terms in each token field (greater word size means more frequency). For specific frequency values refer to `IRWA_Part1_EDA.ipynb`.
-
-
 
 ![alt text](figures/wc_title.png)
 
@@ -442,9 +435,6 @@ The correlation matrix shows a strong positive correlation between actual price 
 ### 4.4 Categorical Field Analysis
 
 **Brand Distribution:**
-- Mix of well-known brands and private labels
-- Significant brand diversity across the catalog
-- Some brands dominate market share
 
 ![alt text](figures/bar_brands.png)
 
@@ -457,29 +447,18 @@ The correlation matrix shows a strong positive correlation between actual price 
 The brand distribution reveals a highly fragmented market with no clear dominant players, as even the top brand holds only 13.0% market share. The relatively even distribution among the top 10 brands (ranging from 6.9% to 13.0%) indicates strong competitive diversity and a lack of market concentration in the fashion e-commerce space.
 
 **Category Analysis:**
-- **Category**: 7 unique categories with varying distribution
-- **Subcategory**: 39 unique subcategories providing detailed classification
-- **Pattern**: Some categories significantly more populated than others
 
 ![alt text](figures/bar_category.png)
 
-![alt text](figures/pie_category.png)
-
-*Figure 4.17: Category distribution charts*
-
+*Figure 4.17: Category distribution chart*
 
 ![alt text](figures/bar_subcategory.png)
 
-![alt text](figures/pie_subcategory.png)
-
-*Figure 4.18: Sub category distribution charts*
+*Figure 4.18: Sub category distribution chart*
 
 The category distributions show clear concentration patterns, with certain product categories (such as clothing and accessories) dominating the catalog. However, the subcategory breakdown reveals extreme concentration, with "topwear" accounting for 55.0% of products, followed distantly by "bottomwear" (13.2%) and "winter wear" (9.0%), indicating a highly skewed distribution toward upper body clothing rather than diverse fashion segments.
 
 **Seller Analysis:**
-- Vendor distribution shows concentration patterns
-- Mix of large and small sellers
-- Some sellers dominate product offerings
 
 ![alt text](figures/bar_seller.png)
 
@@ -490,8 +469,6 @@ The category distributions show clear concentration patterns, with certain produ
 The seller distribution demonstrates a typical marketplace pattern with a few high-volume vendors accounting for the majority of products alongside numerous smaller sellers, suggesting a mix of established retailers and niche boutiques that collectively offer diverse product selections.
 
 **Stock Availability:**
-- **Out-of-stock ratio**: Calculated from boolean field analysis
-- **Pattern**: Manageable stock levels with some seasonal variations
 
 ![alt text](figures/out_of_stock.png)
 
