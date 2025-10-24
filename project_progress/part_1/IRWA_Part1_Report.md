@@ -1,7 +1,9 @@
 # IRWA Final Project - Part 1 Report
 ## Text Processing and Exploratory Data Analysis
+**Github URL**: https://github.com/aniolpetit/irwa-2025-group06
+**Github TAG**: IRWA-2025-part-1
 
-**Date:** October 16, 2025
+**Date:** October 24, 2025
 
 ---
 
