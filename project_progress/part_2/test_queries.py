@@ -2,22 +2,25 @@ from typing import List, Dict, Any, Tuple
 from collections import Counter
 import json
 import random
+import sys
+import os
 
-def analyze_term_frequencies(corpus_data: List[Dict[str, Any]]) -> Tuple[Dict[str,int], Dict[str,int]]:
-    term_counts = Counter()
-    doc_freqs = Counter()
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-    for doc in corpus_data:
-        tokens = doc.get('tokens', [])
-        if isinstance(tokens, str):
-            tokens = tokens.split()
-        term_counts.update(tokens)
+# TF
 
-        # Count each term at most once per document for doc frequency
-        unique_terms = set(tokens)
-        doc_freqs.update(unique_terms)
 
-    return dict(term_counts), dict(doc_freqs)
+def compute_doc_frequencies_from_index(index) -> Dict[str, int]:
+    """
+    Compute document frequencies from the inverted index.
+    This is more efficient than iterating through the corpus.
+    Returns: dict mapping term -> number of documents containing it
+    """
+    doc_freqs = {}
+    for term, postings in index.term_to_docs.items():
+        doc_freqs[term] = len(postings)
+    return doc_freqs
 
 
 def create_test_queries(
@@ -144,3 +147,58 @@ def save_test_queries(queries: List[Dict[str, Any]], filepath: str) -> None:
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(queries, f, indent=2, ensure_ascii=False)
     print(f"Test queries saved to {filepath}")
+
+
+if __name__ == "__main__":
+    # Example: Generate test queries with actual inverted index
+    from inverted_index import InvertedIndex, load_processed_corpus
+    
+    # Load corpus
+    corpus_path = "../part_1/data/processed_corpus.json"
+    corpus = load_processed_corpus(corpus_path)
+    
+    print("\n" + "="*80)
+    print("STEP 1: Build inverted index")
+    print("="*80)
+    index = InvertedIndex()
+    index.build_from_corpus(corpus)
+    
+    print("\n" + "="*80)
+    print("STEP 2: Compute document frequencies from index (more efficient)")
+    print("="*80)
+    doc_freqs = compute_doc_frequencies_from_index(index)
+    
+    print(f"Total unique terms: {len(doc_freqs)}")
+    print(f"\nTop 10 most frequent terms (by document frequency):")
+    sorted_terms = sorted(doc_freqs.items(), key=lambda x: x[1], reverse=True)
+    for i, (term, df) in enumerate(sorted_terms[:10], 1):
+        print(f"{i:2d}. {term:15s} appears in {df:5d} documents ({df/len(corpus)*100:.1f}%)")
+    
+    # Create index lookup function for conjunctive query checking
+    def index_lookup(term: str) -> set:
+        return index.get_documents_for_term(term)
+    
+    print("\n" + "="*80)
+    print("STEP 3: Generate test queries")
+    print("="*80)
+    queries = create_test_queries(
+        corpus_data=corpus,
+        doc_freqs=doc_freqs,
+        top_k_terms=200,
+        n_queries=5,
+        index_lookup=index_lookup
+    )
+    
+    # Display queries
+    for query in queries:
+        print(f"\nQuery {query['id']}: '{query['query']}'")
+        print(f"  Terms: {query['terms']}")
+        print(f"  Term statistics:")
+        for term_stat in query['term_statistics']:
+            print(f"    - '{term_stat['term']}': in {term_stat['doc_frequency']} docs ({term_stat['doc_percentage']:.1f}%)")
+    
+    # Save queries to file
+    print("\n" + "="*80)
+    print("STEP 4: Save queries to file")
+    print("="*80)
+    save_test_queries(queries, "test_queries.json")
