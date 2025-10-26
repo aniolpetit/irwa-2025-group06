@@ -25,26 +25,29 @@ class TFIDFRanker:
         self.document_frequencies = self.build_document_frequencies()
     
     def build_term_frequencies(self) -> Dict[Tuple[str, str], int]:
+        """
+        Build term frequency mapping from inverted index positions.
+        term_freqs[(term, doc_id)] = count of term in doc_id
+        """
         term_freqs = {}
         
-        for doc in self.corpus_data:
-            doc_id = doc.get('pid', '')
-            tokens = doc.get('tokens', [])
-            if isinstance(tokens, str):
-                tokens = tokens.split()
-            
-            # Count term frequencies in this document
-            term_counts = Counter(tokens)
-            for term, count in term_counts.items():
-                term_freqs[(term, doc_id)] = count
+        # Iterate through all terms in the index
+        for term, postings in self.index.term_to_docs.items():
+            for posting in postings:
+                doc_id = posting[0]
+                positions = posting[1]  # array of positions
+                # Term frequency is the number of times the term appears (length of positions array)
+                term_freqs[(term, doc_id)] = len(positions)
         
         return term_freqs
     
     def build_document_frequencies(self) -> Dict[str, int]:
+        """Document frequency is the number of documents containing each term."""
         doc_freqs = {}
         
-        for term in self.index.term_to_docs:
-            doc_freqs[term] = len(self.index.term_to_docs[term])
+        for term, postings in self.index.term_to_docs.items():
+            # Number of postings = number of documents containing the term
+            doc_freqs[term] = len(postings)
         
         return doc_freqs
     
@@ -66,12 +69,17 @@ class TFIDFRanker:
         return tf * idf
     
     def calculate_document_score(self, query_terms: List[str], doc_id: str) -> float:
+        """Calculate TF-IDF score for a document given query terms."""
         total_score = 0.0
         
         for term in query_terms:
-            if term in self.index.term_to_docs and doc_id in self.index.term_to_docs[term]:
-                tfidf_score = self.calculate_tfidf(term, doc_id)
-                total_score += tfidf_score
+            # Check if term exists in index
+            if term in self.index.term_to_docs:
+                # Check if this document contains the term by examining postings
+                postings = self.index.term_to_docs[term]
+                if any(posting[0] == doc_id for posting in postings):
+                    tfidf_score = self.calculate_tfidf(term, doc_id)
+                    total_score += tfidf_score
         
         return total_score
     

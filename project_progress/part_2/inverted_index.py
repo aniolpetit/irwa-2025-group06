@@ -1,25 +1,36 @@
 import json
 from collections import defaultdict
 from typing import Dict, List, Set, Any
+from array import array
 
 
 class InvertedIndex:
     """
     Simple inverted index for conjunctive queries (AND operations).
-    Maps terms to lists of documents containing those terms.
+    Stores term positions in documents to enable TF-IDF calculation.
+    
+    Structure:
+    - term_to_docs[term] = [[doc_id, array([pos1, pos2, ...])], [doc_id, array([pos1, pos2, ...])], ...]
+    - Each posting contains: [document_id, array of term positions in that document]
     """
     
     def __init__(self):
-        self.term_to_docs: Dict[str, Set[str]] = defaultdict(set) # by now we keep a single index for all terms combined, we could consider creating a separate index for each field (title tokens, brand tokens, etc.)
+        self.term_to_docs: Dict[str, List[List]] = defaultdict(list)
         self.total_documents: int = 0
     
     def add_document(self, doc_id: str, tokens: List[str]) -> None:
         if not tokens:
             return
-            
-        # Add document to each term's posting list
-        for term in tokens: # right now it adds the document only once for each term regardless of how many times it appears in the document, maybe we should add it multiple times? We handle this in the TF-IDF ranking though.
-            self.term_to_docs[term].add(doc_id)
+        
+        # Track positions for each term in this document
+        term_positions = defaultdict(list)
+        for position, term in enumerate(tokens):
+            term_positions[term].append(position)
+        
+        # Add postings to the index: [doc_id, array of positions]
+        for term, positions in term_positions.items():
+            posting = [doc_id, array('I', positions)]  # 'I' = unsigned int
+            self.term_to_docs[term].append(posting)
         
         self.total_documents += 1
     
@@ -40,17 +51,25 @@ class InvertedIndex:
             self.add_document(doc_id, tokens)
         
         print(f"Index built successfully. Vocabulary size: {len(self.term_to_docs)}")
+        
+        # Debug: Show first 10 terms in the inverted index
+        self.debug_print_index_samples(n=10)
     
     def conjunctive_query(self, terms: List[str]) -> Set[str]:
         if not terms:
             return set()
         
+        # Extract document IDs from postings: posting = [doc_id, array(positions)]
+        def get_doc_ids(term: str) -> Set[str]:
+            postings = self.term_to_docs.get(term, [])
+            return {posting[0] for posting in postings}
+        
         # Start with documents containing the first term
-        result = set(self.term_to_docs.get(terms[0], set()))
+        result = get_doc_ids(terms[0])
         
         # Intersect with documents containing each subsequent term
         for term in terms[1:]:
-            term_docs = set(self.term_to_docs.get(term, set()))
+            term_docs = get_doc_ids(term)
             result = result.intersection(term_docs)
             
             # Early termination if no documents match
@@ -60,7 +79,9 @@ class InvertedIndex:
         return result
     
     def get_documents_for_term(self, term: str) -> Set[str]:
-        return set(self.term_to_docs.get(term, set()))
+        """Get all document IDs containing the given term."""
+        postings = self.term_to_docs.get(term, [])
+        return {posting[0] for posting in postings}
     
     def get_vocabulary_stats(self) -> Dict[str, Any]:
         return {
@@ -70,10 +91,23 @@ class InvertedIndex:
         }
     
     def get_most_frequent_terms(self, n: int) -> List[tuple]:
-
+        """
+        Get the top N most frequent terms (by document count).
+        Returns list of tuples: [(term, num_documents), ...]
+        """
         sorted_terms = sorted(self.term_to_docs.items(), 
                             key=lambda x: len(x[1]), reverse=True)
         return [(term, len(docs)) for term, docs in sorted_terms[:n]]
+    
+    def debug_print_index_samples(self, n: int = 10) -> None:
+        """Debug: Print first N terms from the inverted index."""
+        print(f"\nFirst {n} terms in the inverted index:")
+        for i, (term, postings) in enumerate(list(self.term_to_docs.items())[:n]):
+            print(f"\n'{term}': {len(postings)} documents")
+            for j, posting in enumerate(postings[:3]):
+                print(f"  [{posting[0]}, {list(posting[1])}]")
+            if len(postings) > 3:
+                print(f"  ... ({len(postings) - 3} more)")
 
 
 def load_processed_corpus(filepath: str) -> List[Dict[str, Any]]:
