@@ -5,7 +5,7 @@ Simple TF-IDF scoring and ranking for search results.
 
 import math
 from typing import Dict, List, Tuple, Set
-from collections import Counter
+from collections import Counter, defaultdict
 from inverted_index import InvertedIndex
 
 
@@ -20,9 +20,10 @@ class TFIDFRanker:
         self.corpus_data = corpus_data
         self.total_documents = len(corpus_data)
         
-        # Build term frequency mapping
+        # Build term frequency and document frequency mappings
         self.term_frequencies = self.build_term_frequencies()
         self.document_frequencies = self.build_document_frequencies()
+        self.normalized_tf = self.build_normalized_tf()
     
     def build_term_frequencies(self) -> Dict[Tuple[str, str], int]:
         """
@@ -51,11 +52,41 @@ class TFIDFRanker:
         
         return doc_freqs
     
+    def build_normalized_tf(self) -> Dict[Tuple[str, str], float]:
+        """
+        Build normalized term frequency mapping (TF normalized by Euclidean norm).
+        Formula: tf(t,d) = freq(t,d) / ||D|| where ||D|| = sqrt(sum of freq²)
+        This matches the solution notebook approach.
+        """
+        normalized_tf = {}
+        
+        # First, group terms by document
+        doc_term_counts = defaultdict(dict)
+        for term, postings in self.index.term_to_docs.items():
+            for posting in postings:
+                doc_id = posting[0]
+                positions = posting[1]
+                count = len(positions)
+                doc_term_counts[doc_id][term] = count
+        
+        # Calculate normalized TF for each term in each document
+        for doc_id, term_counts in doc_term_counts.items():
+            # Calculate Euclidean norm for this document
+            norm = math.sqrt(sum(freq ** 2 for freq in term_counts.values()))
+            
+            # Normalize each term frequency
+            for term, freq in term_counts.items():
+                normalized_tf[(term, doc_id)] = freq / norm if norm > 0 else 0.0
+        
+        return normalized_tf
+    
     def calculate_tf(self, term: str, doc_id: str) -> float:
-        raw_freq = self.term_frequencies.get((term, doc_id), 0)
-        if raw_freq == 0:
-            return 0.0
-        return 1.0 + math.log(raw_freq)
+        """
+        Calculate normalized TF using the solution notebook formula.
+        Formula: tf(t,d) = freq(t,d) / ||D||
+        """
+        # Use normalized TF that was precomputed
+        return self.normalized_tf.get((term, doc_id), 0.0)
     
     def calculate_idf(self, term: str) -> float:
         df = self.document_frequencies.get(term, 0)
@@ -68,28 +99,52 @@ class TFIDFRanker:
         idf = self.calculate_idf(term)
         return tf * idf
     
-    def calculate_document_score(self, query_terms: List[str], doc_id: str) -> float:
-        """Calculate TF-IDF score for a document given query terms."""
-        total_score = 0.0
-        
-        for term in query_terms:
-            # Check if term exists in index
-            if term in self.index.term_to_docs:
-                # Check if this document contains the term by examining postings
-                postings = self.index.term_to_docs[term]
-                if any(posting[0] == doc_id for posting in postings):
-                    tfidf_score = self.calculate_tfidf(term, doc_id)
-                    total_score += tfidf_score
-        
-        return total_score
-    
     def rank_documents(self, query_terms: List[str], candidate_docs: Set[str]) -> List[Tuple[str, float]]:
-        scored_docs = []
+        """
+        Rank documents using cosine similarity (dot product of query and document vectors).
+        Matches the solution notebook approach.
+        """
+        from collections import Counter
         
-        for doc_id in candidate_docs:
-            score = self.calculate_document_score(query_terms, doc_id)
-            if score > 0:  # Only include documents with non-zero scores
-                scored_docs.append((doc_id, score))
+        # Build query vector with normalized TF
+        query_term_counts = Counter(query_terms)
+        query_norm = math.sqrt(sum(count ** 2 for count in query_term_counts.values()))
+        query_vector = []
+        
+        # Build document vectors
+        doc_vectors = {}
+        
+        for term_index, term in enumerate(query_terms):
+            if term not in self.index.term_to_docs:
+                query_vector.append(0.0)
+                continue
+            
+            # Calculate query vector component (normalized TF * IDF)
+            query_tf_norm = query_term_counts[term] / query_norm if query_norm > 0 else 0
+            query_idf = self.calculate_idf(term)
+            query_vector.append(query_tf_norm * query_idf)
+            
+            # Build document vector components for this term
+            postings = self.index.term_to_docs[term]
+            for posting in postings:
+                doc_id = posting[0]
+                if doc_id not in candidate_docs:
+                    continue
+                
+                if doc_id not in doc_vectors:
+                    doc_vectors[doc_id] = [0.0] * len(query_terms)
+                
+                # Calculate TF-IDF for this term in this document
+                doc_tf = self.calculate_tf(term, doc_id)
+                doc_idf = query_idf  # Same IDF
+                doc_vectors[doc_id][term_index] = doc_tf * doc_idf
+        
+        # Calculate cosine similarity (dot product) for each document
+        scored_docs = []
+        for doc_id, doc_vector in doc_vectors.items():
+            # Compute dot product between query and document vectors
+            score = sum(q * d for q, d in zip(query_vector, doc_vector))
+            scored_docs.append((doc_id, score))
         
         # Sort by score in descending order
         scored_docs.sort(key=lambda x: x[1], reverse=True)
