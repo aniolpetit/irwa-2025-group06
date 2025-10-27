@@ -11,8 +11,16 @@ from inverted_index import InvertedIndex
 
 class TFIDFRanker:
     """
-    Simple TF-IDF ranking implementation.
-    Calculates TF-IDF scores and ranks documents by relevance.
+    TF-IDF ranking implementation using logarithmic TF and cosine similarity.
+    
+    Formulas (matching the slide):
+    - TF: w_tf = 1 + log₂(freq)
+    - IDF: w_idf = log₂(N / df) where N = total docs, df = doc frequency
+    - TF-IDF: w = (1 + log₂ f) × log₂(N / df)
+    - Document length: length(d) = sqrt(Σ w_i²)
+    - Score: score = (query_vector · doc_vector) / doc_length
+    
+    Uses log base 2 for all calculations.
     """
     
     def __init__(self, inverted_index: InvertedIndex, corpus_data: List[Dict]):
@@ -23,7 +31,10 @@ class TFIDFRanker:
         # Build term frequency and document frequency mappings
         self.term_frequencies = self.build_term_frequencies()
         self.document_frequencies = self.build_document_frequencies()
-        self.normalized_tf = self.build_normalized_tf()
+        
+        # Build logarithmic TF and document lengths for cosine similarity
+        self.log_tf = self.build_log_tf()
+        self.doc_lengths = self.build_document_lengths()
     
     def build_term_frequencies(self) -> Dict[Tuple[str, str], int]:
         """
@@ -52,47 +63,79 @@ class TFIDFRanker:
         
         return doc_freqs
     
-    def build_normalized_tf(self) -> Dict[Tuple[str, str], float]:
+    def build_log_tf(self) -> Dict[Tuple[str, str], float]:
         """
-        Build normalized term frequency mapping (TF normalized by Euclidean norm).
-        Formula: tf(t,d) = freq(t,d) / ||D|| where ||D|| = sqrt(sum of freq²)
-        This matches the solution notebook approach.
+        Build logarithmic term frequency mapping.
+        Formula: tf(t,d) = 1 + log₂(freq) where freq is raw term frequency
+        Matches the slide formula: w_i,j = (1 + log f_i,j) × log (N / df_i)
         """
-        normalized_tf = {}
+        log_tf = {}
         
-        # First, group terms by document
-        doc_term_counts = defaultdict(dict)
+        # Calculate logarithmic TF for each term in each document
         for term, postings in self.index.term_to_docs.items():
             for posting in postings:
                 doc_id = posting[0]
                 positions = posting[1]
-                count = len(positions)
-                doc_term_counts[doc_id][term] = count
+                raw_freq = len(positions)
+                
+                # Formula: tf = 1 + log₂(freq)
+                if raw_freq > 0:
+                    # Use natural log and convert: log₂(x) = ln(x) / ln(2)
+                    log_tf[(term, doc_id)] = 1.0 + math.log2(raw_freq) if raw_freq > 0 else 0.0
+                else:
+                    log_tf[(term, doc_id)] = 0.0
         
-        # Calculate normalized TF for each term in each document
-        for doc_id, term_counts in doc_term_counts.items():
-            # Calculate Euclidean norm for this document
-            norm = math.sqrt(sum(freq ** 2 for freq in term_counts.values()))
+        return log_tf
+    
+    def build_document_lengths(self) -> Dict[str, float]:
+        """
+        Compute document vector lengths for cosine similarity.
+        Formula: length(d) = sqrt(Σ w_i²) where w_i are TF-IDF weights
+        """
+        doc_lengths = {}
+        
+        # For each document, calculate its vector length
+        doc_weights = defaultdict(lambda: [])
+        
+        for term, postings in self.index.term_to_docs.items():
+            # Calculate IDF for this term
+            idf = self.calculate_idf(term)
             
-            # Normalize each term frequency
-            for term, freq in term_counts.items():
-                normalized_tf[(term, doc_id)] = freq / norm if norm > 0 else 0.0
+            for posting in postings:
+                doc_id = posting[0]
+                positions = posting[1]
+                raw_freq = len(positions)
+                
+                # Calculate TF-IDF weight: (1 + log₂ freq) × idf
+                if raw_freq > 0:
+                    tf = 1.0 + math.log2(raw_freq)
+                    weight = tf * idf
+                    doc_weights[doc_id].append(weight)
         
-        return normalized_tf
+        # Calculate length for each document
+        for doc_id, weights in doc_weights.items():
+            # length = sqrt(sum of weights²)
+            doc_lengths[doc_id] = math.sqrt(sum(w ** 2 for w in weights))
+        
+        return doc_lengths
     
     def calculate_tf(self, term: str, doc_id: str) -> float:
         """
-        Calculate normalized TF using the solution notebook formula.
-        Formula: tf(t,d) = freq(t,d) / ||D||
+        Calculate logarithmic TF using the slide formula.
+        Formula: tf(t,d) = 1 + log₂(freq)
         """
-        # Use normalized TF that was precomputed
-        return self.normalized_tf.get((term, doc_id), 0.0)
+        # Use logarithmic TF that was precomputed
+        return self.log_tf.get((term, doc_id), 0.0)
     
     def calculate_idf(self, term: str) -> float:
+        """
+        Calculate IDF using the slide formula with log base 2.
+        Formula: idf(t) = log₂(N / df_t)
+        """
         df = self.document_frequencies.get(term, 0)
         if df == 0:
             return 0.0
-        return math.log(self.total_documents / df)
+        return math.log2(self.total_documents / df)
     
     def calculate_tfidf(self, term: str, doc_id: str) -> float:
         tf = self.calculate_tf(term, doc_id)
@@ -101,49 +144,62 @@ class TFIDFRanker:
     
     def rank_documents(self, query_terms: List[str], candidate_docs: Set[str]) -> List[Tuple[str, float]]:
         """
-        Rank documents using cosine similarity (dot product of query and document vectors).
-        Matches the solution notebook approach.
+        Rank documents using cosine similarity matching the slide formula.
+        Formula: score(d, q) = (query_vector · doc_vector) / doc_length
+        
+        Where:
+        - query_vector[i] = (1 + log₂ f_i,q) × log₂(N / df_i)
+        - doc_vector[i] = (1 + log₂ f_i,j) × log₂(N / df_i)
+        - doc_length = sqrt(Σ w_i²)
         """
         from collections import Counter
         
-        # Build query vector with normalized TF
+        # Count query term frequencies
         query_term_counts = Counter(query_terms)
-        query_norm = math.sqrt(sum(count ** 2 for count in query_term_counts.values()))
-        query_vector = []
         
-        # Build document vectors
-        doc_vectors = {}
+        # Build query vector with TF-IDF weights
+        query_vector = [0.0] * len(query_terms)
         
         for term_index, term in enumerate(query_terms):
             if term not in self.index.term_to_docs:
-                query_vector.append(0.0)
                 continue
             
-            # Calculate query vector component (normalized TF * IDF)
-            query_tf_norm = query_term_counts[term] / query_norm if query_norm > 0 else 0
-            query_idf = self.calculate_idf(term)
-            query_vector.append(query_tf_norm * query_idf)
+            # Query TF: 1 + log₂(freq_in_query)
+            query_freq = query_term_counts[term]
+            if query_freq > 0:
+                query_tf = 1.0 + math.log2(query_freq)
+            else:
+                query_tf = 0.0
             
-            # Build document vector components for this term
-            postings = self.index.term_to_docs[term]
-            for posting in postings:
-                doc_id = posting[0]
-                if doc_id not in candidate_docs:
+            # IDF for this term
+            query_idf = self.calculate_idf(term)
+            
+            # Query vector component: w_i,q = (1 + log₂ f_i,q) × log₂(N / df_i)
+            query_vector[term_index] = query_tf * query_idf
+        
+        # Build document vectors and calculate scores
+        scored_docs = []
+        
+        for doc_id in candidate_docs:
+            doc_vector = [0.0] * len(query_terms)
+            
+            # Build TF-IDF vector for this document
+            for term_index, term in enumerate(query_terms):
+                if term not in self.index.term_to_docs:
                     continue
                 
-                if doc_id not in doc_vectors:
-                    doc_vectors[doc_id] = [0.0] * len(query_terms)
-                
-                # Calculate TF-IDF for this term in this document
-                doc_tf = self.calculate_tf(term, doc_id)
-                doc_idf = query_idf  # Same IDF
-                doc_vectors[doc_id][term_index] = doc_tf * doc_idf
-        
-        # Calculate cosine similarity (dot product) for each document
-        scored_docs = []
-        for doc_id, doc_vector in doc_vectors.items():
-            # Compute dot product between query and document vectors
-            score = sum(q * d for q, d in zip(query_vector, doc_vector))
+                # Get TF-IDF weight for this term in this document
+                tfidf_weight = self.calculate_tfidf(term, doc_id)
+                doc_vector[term_index] = tfidf_weight
+            
+            # Calculate dot product: query_vector · doc_vector
+            dot_product = sum(q * d for q, d in zip(query_vector, doc_vector))
+            
+            # Get document length (precomputed)
+            doc_length = self.doc_lengths.get(doc_id, 1.0)
+            
+            # Final score: dot product divided by document length
+            score = dot_product / doc_length if doc_length > 0 else 0.0
             scored_docs.append((doc_id, score))
         
         # Sort by score in descending order
