@@ -210,6 +210,7 @@ class TFIDFRanker:
 if __name__ == "__main__":
     # Example usage
     from inverted_index import load_processed_corpus, InvertedIndex
+    import json
     
     # Load corpus and build index
     corpus_path = "../part_1/data/processed_corpus.json"
@@ -233,3 +234,22 @@ if __name__ == "__main__":
     print(f"\nTop 5 results:")
     for i, (doc_id, score) in enumerate(ranked_results[:5]):
         print(f"{i+1}. Document {doc_id}: {score:.4f}")
+    
+    # Human-readable preview of the top ranked products
+
+    by_pid = {rec["pid"]: rec for rec in corpus}
+
+    def peek(ranked, k=10):
+        print("\nPreview of top ranked documents:\n")
+        for i, (pid, score) in enumerate(ranked[:k], start=1):
+            rec = by_pid.get(pid, {})
+            print(f"{i}. {pid} | score={score:.4f}")
+            print("   title:", rec.get("title", "?"))
+            print("   category:", rec.get("category"),
+                  "| sub_category:", rec.get("sub_category"))
+            print("   brand:", rec.get("brand"),
+                  "| avg_rating:", rec.get("average_rating"))
+            print()
+
+    # Showing the first 10 docs with info for a quick relevance sanity check
+    peek(ranked_results, k=10)
