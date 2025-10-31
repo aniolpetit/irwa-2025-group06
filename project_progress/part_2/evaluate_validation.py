@@ -1,5 +1,9 @@
 import csv
 from typing import Dict, List
+import html
+from bs4 import BeautifulSoup
+import unicodedata
+import re
 
 import nltk
 from nltk.corpus import stopwords
@@ -26,22 +30,37 @@ try:
 except LookupError:
     nltk.download('punkt_tab')
 
+
+# Get cleaning function from document preprocessing in part 1
+def clean_text(text: str) -> str:
+    # Unescape HTML
+    text = html.unescape(text)
+    # Remove HTML tags
+    text = BeautifulSoup(text, "html.parser").get_text(separator=" ")
+    # Normalize unicode
+    text = unicodedata.normalize("NFKC", text)
+    # Remove non-alphanumeric characters (except spaces)
+    text = re.sub(r"[^a-zA-Z0-9\s]", " ", text)
+    # Collapse multiple spaces and strip
+    text = re.sub(r"\s+", " ", text).strip()
+    # Lowercase
+    text = text.lower()
+    return text
+
 # Initialize NLTK components
 STOP_WORDS = set(stopwords.words('english'))
 STEMMER = SnowballStemmer('english')
 
-
 def preprocess_query(query_text: str) -> List[str]:
-    # We want to preprocess queries using the same pipeline as the corpus.
+    # We need to apply the same preprocessing steps as for the corpus
+    # Clean query text before tokenization
+    cleaned = clean_text(query_text)
     # Tokenize
-    tokens = word_tokenize(query_text.lower())
-    
+    tokens = word_tokenize(cleaned)
     # Remove stopwords
     tokens = [t for t in tokens if t not in STOP_WORDS]
-    
     # Stem
     tokens = [STEMMER.stem(t) for t in tokens if len(t) > 2]
-    
     return tokens
 
 
