@@ -15,20 +15,9 @@ class EvaluationMetrics:
     Some metrics also support graded relevance if needed.
     """
     
-    def precision_at_k(self, relevance_labels: List[int], k: int) -> float:
-        """
-        Calculate Precision@K.
+    def precision_at_k(self, relevance_labels: List[int], k: int) -> float:        
+        # Precision@K = (number of relevant docs in top K) / K
         
-        Precision@K = (number of relevant docs in top K) / K
-        
-        Args:
-            relevance_labels: List of relevance labels (1=relevant, 0=non-relevant) 
-                             in the same order as ranked results
-            k: Cutoff position
-        
-        Returns:
-            Precision@K score (0.0 to 1.0)
-        """
         if k <= 0:
             return 0.0
         
@@ -40,20 +29,9 @@ class EvaluationMetrics:
         
         return relevant_in_topk / k
     
-    def recall_at_k(self, relevance_labels: List[int], k: int) -> float:
-        """
-        Calculate Recall@K.
+    def recall_at_k(self, relevance_labels: List[int], k: int) -> float:  
+        # Recall@K = (number of relevant docs in top K) / total_relevant_docs
         
-        Recall@K = (number of relevant docs in top K) / total_relevant_docs
-        
-        Args:
-            relevance_labels: List of relevance labels (1=relevant, 0=non-relevant)
-                             in the same order as ranked results
-            k: Cutoff position
-        
-        Returns:
-            Recall@K score (0.0 to 1.0)
-        """
         # Total number of relevant documents
         total_relevant = sum(1 for label in relevance_labels if label == 1)
         if total_relevant == 0:
@@ -67,21 +45,9 @@ class EvaluationMetrics:
         
         return relevant_in_topk / total_relevant
     
-    def average_precision_at_k(self, relevance_labels: List[int], k: int) -> float:
-        """
-        Calculate Average Precision@K (AP@K).
-        
-        AP@K = (1/R) * Σ(Precision_i) for positions i where doc is relevant
-        Where R = total number of relevant documents in the collection
-        
-        Args:
-            relevance_labels: List of relevance labels (1=relevant, 0=non-relevant)
-                             in the same order as ranked results
-            k: Cutoff position
-        
-        Returns:
-            Average Precision@K score (0.0 to 1.0)
-        """
+    def average_precision_at_k(self, relevance_labels: List[int], k: int) -> float:        
+        # AP@K = (1/R) * Σ(Precision_i) for positions i where doc is relevant where R = total number of relevant documents in the collection
+
         # Total number of relevant documents in the entire set
         total_relevant_docs = sum(1 for label in relevance_labels if label == 1)
         if total_relevant_docs == 0:
@@ -106,19 +72,8 @@ class EvaluationMetrics:
         return precision_sum / total_relevant_docs
     
     def f1_score_at_k(self, relevance_labels: List[int], k: int) -> float:
-        """
-        Calculate F1-Score@K.
-        
-        F1@K = 2 * (P@K * R@K) / (P@K + R@K)
-        
-        Args:
-            relevance_labels: List of relevance labels (1=relevant, 0=non-relevant)
-                             in the same order as ranked results
-            k: Cutoff position
-        
-        Returns:
-            F1-Score@K (0.0 to 1.0), returns 0.0 if both precision and recall are 0
-        """
+        # F1@K = 2 * (P@K * R@K) / (P@K + R@K)
+
         precision = self.precision_at_k(relevance_labels, k)
         recall = self.recall_at_k(relevance_labels, k)
         
@@ -128,35 +83,16 @@ class EvaluationMetrics:
         return 2 * (precision * recall) / (precision + recall)
     
     def mean_average_precision(self, ap_scores: List[float]) -> float:
-        """
-        Calculate Mean Average Precision (MAP).
-        
-        MAP = (1 / N) * Σ AP_i for all queries
-        
-        Args:
-            ap_scores: List of Average Precision scores for each query
-        
-        Returns:
-            Mean Average Precision (0.0 to 1.0)
-        """
+        # MAP = (1 / N) * Σ AP_i for all queries
+
         if len(ap_scores) == 0:
             return 0.0
         
         return sum(ap_scores) / len(ap_scores)
     
     def mean_reciprocal_rank(self, relevance_labels_list: List[List[int]]) -> float:
-        """
-        Calculate Mean Reciprocal Rank (MRR).
-        
-        MRR = (1 / N) * Σ (1 / rank_i) for all queries
-        Where rank_i is the position of the first relevant document
-        
-        Args:
-            relevance_labels_list: List of relevance label lists for each query
-        
-        Returns:
-            Mean Reciprocal Rank (0.0 to 1.0)
-        """
+        #MRR = (1 / N) * Σ (1 / rank_i) for all queries where rank_i is the position of the first relevant document
+
         if len(relevance_labels_list) == 0:
             return 0.0
         
@@ -177,26 +113,14 @@ class EvaluationMetrics:
         
         return sum(reciprocal_ranks) / len(reciprocal_ranks)
     
-    def normalized_discounted_cumulative_gain(self, relevance_labels: List[int], k: int) -> float:
-        """
-        Calculate Normalized Discounted Cumulative Gain (NDCG@K).
-        
-        NDCG@K = DCG@K / IDCG@K
-        
-        Where:
-        - DCG@K = Σ (relevance_i / log2(i + 1)) for positions 1 to K
-        - IDCG@K = ideal DCG@K (ranking all relevant docs first)
-        
-        Args:
-            relevance_labels: List of relevance labels (1=relevant, 0=non-relevant)
-                             in the same order as ranked results
-            k: Cutoff position
-        
-        Returns:
-            NDCG@K score (0.0 to 1.0)
-        """
+    def normalized_discounted_cumulative_gain(self, relevance_labels: List[int], k: int) -> float: 
+        # NDCG@K = DCG@K / IDCG@K
+        # Where:
+        # - DCG@K = Σ (relevance_i / log2(i + 1)) for positions 1 to K
+        # - IDCG@K = ideal DCG@K (ranking all relevant docs first)
+
         def dcg(scores: List[float]) -> float:
-            """Calculate Discounted Cumulative Gain."""
+            # Helper function to compute the dcg
             dcg_value = 0.0
             for i, score in enumerate(scores):
                 position = i + 1

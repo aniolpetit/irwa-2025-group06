@@ -1,8 +1,3 @@
-"""
-Evaluation script for validation_labels.csv queries.
-Applies the evaluation metrics to the predefined queries.
-"""
-
 import csv
 from typing import Dict, List
 
@@ -37,9 +32,7 @@ STEMMER = SnowballStemmer('english')
 
 
 def preprocess_query(query_text: str) -> List[str]:
-    """
-    Preprocess query using the same pipeline as the corpus.
-    """
+    # We want to preprocess queries using the same pipeline as the corpus.
     # Tokenize
     tokens = word_tokenize(query_text.lower())
     
@@ -53,13 +46,10 @@ def preprocess_query(query_text: str) -> List[str]:
 
 
 def load_validation_labels(filepath: str) -> Dict[int, List[tuple]]:
-    """
-    Load validation labels from CSV.
+    # Returns a dictionary where:
+    # - Key: query_id (1 or 2)
+    # - Value: List of tuples (pid, label) in the order they appear in CSV
     
-    Returns a dictionary where:
-    - Key: query_id (1 or 2)
-    - Value: List of tuples (pid, label) in the order they appear in CSV
-    """
     validation_data = {}
     
     with open(filepath, 'r', encoding='utf-8') as f:
@@ -77,14 +67,7 @@ def load_validation_labels(filepath: str) -> Dict[int, List[tuple]]:
 
 
 
-
-
-
 def run_tfidf_ranking():
-    """
-    Run TF-IDF ranking on the validation queries.
-    Returns ranked document IDs for each query.
-    """
     # Load corpus
     corpus_path = "../part_1/data/processed_corpus.json"
     corpus = load_processed_corpus(corpus_path)
@@ -131,16 +114,6 @@ def run_tfidf_ranking():
 
 
 def create_relevance_labels(ranked_docs: List[str], validation_data: List[tuple]) -> List[int]:
-    """
-    Create relevance label list matching the ranked order.
-    
-    Args:
-        ranked_docs: List of document IDs in ranked order
-        validation_data: List of (pid, label) tuples from validation_labels.csv
-    
-    Returns:
-        List of relevance labels (1 or 0) in the same order as ranked_docs
-    """
     # Create a dict for quick lookup: pid -> label
     pid_to_label = {pid: label for pid, label in validation_data}
     
@@ -154,22 +127,13 @@ def create_relevance_labels(ranked_docs: List[str], validation_data: List[tuple]
     return relevance_labels
 
 
-def evaluate_queries():
-    """
-    Main evaluation function.
-    """
-    print("=" * 80)
-    print("Evaluation Results for Validation Labels")
-    print("=" * 80)
-    
+def evaluate_queries():    
     # Load validation labels
-    validation_path = "validation_labels.csv"
+    validation_path = "../../data/validation_labels.csv"
     validation_data = load_validation_labels(validation_path)
     
     # Run TF-IDF ranking
-    print("\n" + "=" * 80)
     print("Running TF-IDF Ranking")
-    print("=" * 80)
     ranked_results = run_tfidf_ranking()
     
     # Create evaluator instance
@@ -242,9 +206,7 @@ def evaluate_queries():
     map_score = evaluator.mean_average_precision(ap_scores) if ap_scores else 0.0
     
     # Print formatted results
-    print("\n" + "=" * 80)
     print("Numeric Results (rounded to 3 decimal places)")
-    print("=" * 80)
     
     for query_id in [1, 2]:
         print(f"\nQuery {query_id}:")
@@ -258,9 +220,6 @@ def evaluate_queries():
     print(f"  MAP: {map_score:.3f}")
     print(f"  MRR: {mrr:.3f}")
     
-    print("\n" + "=" * 80)
-
-
 if __name__ == "__main__":
     evaluate_queries()
 
