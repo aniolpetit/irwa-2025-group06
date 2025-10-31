@@ -10,6 +10,13 @@
 We decided to select the queries based on their **popularity** and **specificity**. We included queries with high popularity to evaluate whether our retrieval engine can correctly narrow down and rank the most relevant documents among a large pool of potential matches. On the other hand, we added low-popularity queries to test the engine’s ability to retrieve the few documents that contain these rarer terms.
 Furthermore, we applied the same reasoning to specificity: by including both highly specific and more general queries, we can assess whether the engine handles different levels of query precision effectively. Highly specific queries help us test if the engine can accurately match detailed user intent, while broader ones allow us to evaluate how well it manages ambiguity and relevance ranking across a wider range of possible results.
 
+# New queries so that we have some validation docs relevant
+	1.	Query: women sweatshirt 
+	2.	Query: skinny blue jeans
+	3.	Query: v neck t-shirt (hem de mirar perq clean_text treia els -, llavors tshirt equivaldria a shirt i seria dolent no diferenciarho)
+	4.	Query: full sleeve graphic sweatshirt
+	5.	Query: t-shirt pack
+
 # Part 2 (Evaluation) Exercise 3
 
 ## a. For the test queries you defined in Part 1, Step 2 during indexing, assign a binary relevance label to each document: 1 if the document is relevant to the query, or 0 if it is not.
