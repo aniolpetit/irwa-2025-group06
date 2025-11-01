@@ -27,11 +27,8 @@ def load_validation_labels(filepath: str) -> Dict[int, List[tuple]]:
 
 
 def get_retrieved_documents_and_labels(validation_data: Dict[int, List[tuple]]) -> Dict[int, tuple]:
-    """
-    Extract retrieved documents and their relevance labels from validation data.
-    The validation CSV contains 20 documents per query in retrieval order.
-    Returns a dict: {query_id: (retrieved_docs, relevance_labels)}
-    """
+    # We extract the retrieved documents and their relevance labels from the validation data.
+    # The validation CSV contains 20 documents per query in retrieval order.
     results = {}
     
     for query_id, data_list in validation_data.items():

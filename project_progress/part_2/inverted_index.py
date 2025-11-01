@@ -80,7 +80,7 @@ class InvertedIndex:
         return result
     
     def get_documents_for_term(self, term: str) -> Set[str]:
-        """Get all document IDs containing the given term."""
+        # We get all document IDs containing the given term
         postings = self.term_to_docs.get(term, [])
         return {posting[0] for posting in postings}
     
@@ -92,16 +92,13 @@ class InvertedIndex:
         }
     
     def get_most_frequent_terms(self, n: int) -> List[tuple]:
-        """
-        Get the top N most frequent terms (by document count).
-        Returns list of tuples: [(term, num_documents), ...]
-        """
+        # We get the top N most frequent terms by document count
         sorted_terms = sorted(self.term_to_docs.items(), 
                             key=lambda x: len(x[1]), reverse=True)
         return [(term, len(docs)) for term, docs in sorted_terms[:n]]
     
     def debug_print_index_samples(self, n: int = 10) -> None:
-        """Debug: Print first N terms from the inverted index."""
+        # We print the first N terms in the inverted index for debugging purposes
         print(f"\nFirst {n} terms in the inverted index:")
         for i, (term, postings) in enumerate(list(self.term_to_docs.items())[:n]):
             print(f"\n'{term}': {len(postings)} documents")
@@ -112,7 +109,7 @@ class InvertedIndex:
 
 
 def load_processed_corpus(filepath: str, verbose: bool = False) -> List[Dict[str, Any]]:
-
+    # We load the processed corpus from the given file
     if verbose:
         print(f"Loading processed corpus from {filepath}...")
     with open(filepath, 'r', encoding='utf-8') as f:
