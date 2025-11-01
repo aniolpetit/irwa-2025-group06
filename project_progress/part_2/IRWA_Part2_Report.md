@@ -3,11 +3,11 @@
 
 ## Defining Test Queries
 
-- **Query**: ecko unl shirt (very popular, not specific)
-- **Query**: ecko unl men shirt round neck (very popular, very specific)
-- **Query**: women polo cotton (very popular, very specific)
-- **Query**: casual clothes slim fit (not popular, moderately specific)
-- **Query**: biowash innerwear (not popular, not specific)
+- **Query**: `ecko unl shirt` (very popular, not specific)
+- **Query**: `ecko unl men shirt` round neck (very popular, very specific)
+- **Query**: `women polo cotton` (very popular, very specific)
+- **Query**: `casual clothes slim fit` (not popular, moderately specific)
+- **Query**: `biowash innerwear` (not popular, not specific)
 
 We decided to select the queries based on their **popularity** and **specificity**. We included queries with high popularity to evaluate whether our retrieval engine can correctly narrow down and rank the most relevant documents among a large pool of potential matches. Conversely, we added low-popularity queries to test the engine’s ability to retrieve the few documents that contain these rarer terms.
 
@@ -24,7 +24,7 @@ A MI M'AGRADA MÉS:
 As seen in Exercise 1.3, the conjunctive queries produced highly variable result sizes, from 0 up to more than 1300 documents, consistent with their different popularity and specificity levels. For simplicity purposes, we'll be labelling only the top 10 documents per each query.
 PERQUÈ TENIM UNA DE 74 RESULTS I UNA DE 59
 
-- **Query**: ecko unl shirt
+- **Query**: `ecko unl shirt`
     1. men slim fit printed casual shirt **1**
     2. men slim fit printed casual shirt **1**
     3. women slim fit printed casual shirt **1**
@@ -36,7 +36,7 @@ PERQUÈ TENIM UNA DE 74 RESULTS I UNA DE 59
     9. women slim fit solid casual shirt **1**
     10. men slim fit solid casual shirt **1**
 
-- **Query**: ecko unl men shirt round neck (hauríem de pensar si volem aquesta query, pensant-ho bé una camisa amb round neck no sé què vol dir)
+- **Query**: `ecko unl men shirt round neck` (hauríem de pensar si volem aquesta query, pensant-ho bé una camisa amb round neck no sé què vol dir)
     1. printed men round neck black t shirt **0** (again, t-shirt)
     2. printed men round neck black t shirt **0**
     3. printed men round neck black t shirt **0**
@@ -48,7 +48,7 @@ PERQUÈ TENIM UNA DE 74 RESULTS I UNA DE 59
     9. solid men round neck multicolor t shirt **0**
     10. solid men round neck blue t shirt **0**
 
-- **Query**: women polo cotton
+- **Query**: `women polo cotton`
 (en tots els resultats no sabem si és cotton, com que son conjunctive queries si el sistema l'ha retrieved és que el cotton deu estar en algun field que no estem printing, per tant jo deixaria 1, podríem fer una noteta explicant això)
     1. solid women polo neck black t shirt **1**
     2. solid women polo neck black t shirt **1**
@@ -61,10 +61,11 @@ PERQUÈ TENIM UNA DE 74 RESULTS I UNA DE 59
     9. solid women polo neck black t shirt **1**
     10. solid women polo neck white t shirt **1**
 
-- **Query**: casual clothes slim fit
-    - No documents found matching all query terms.
+- **Query**: `casual clothes slim fit`
 
-- **Query**: biowash innerwear
+    No documents found matching all query terms.
+
+- **Query**: `biowash innerwear`
     1. free authority men vest **1**
     2. free authority women vest **1**
     3. free authority women vest **1**
