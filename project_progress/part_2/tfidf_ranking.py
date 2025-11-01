@@ -195,7 +195,7 @@ if __name__ == "__main__":
     # Test queries
     queries = [
         "ecko unl shirt",
-        "ecko unlmen shirt round neck",
+        "ecko unl men shirt round neck",
         "women polo cotton",
         "casual clothes slim fit",
         "biowash innerwear"
@@ -230,12 +230,10 @@ if __name__ == "__main__":
             category = doc_info.get('category', 'N/A')
             sub_category = doc_info.get('sub_category', 'N/A')
             
-            # Get description snippet (first 100 chars)
+            # Print full description snippet
+            # Get full description
             description = doc_info.get('description', '')
-            if description:
-                desc_snippet = description[:100] + ('...' if len(description) > 100 else '')
-            else:
-                desc_snippet = 'N/A'
+            desc_snippet = description if description else 'N/A'
             
             print(f"{i+1:3d}. [Score: {score:.6f}] | PID: {doc_id}")
             print(f"     Title: {title}")
