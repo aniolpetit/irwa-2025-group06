@@ -215,21 +215,67 @@ if __name__ == "__main__":
     corpus_path = "../part_1/data/processed_corpus.json"
     corpus = load_processed_corpus(corpus_path)
     
+    # Build a lookup dictionary for document information by pid
+    doc_lookup = {doc.get('pid'): doc for doc in corpus if doc.get('pid')}
+    
     index = InvertedIndex()
     index.build_from_corpus(corpus)
     
     # Create ranker
     ranker = TFIDFRanker(index, corpus)
     
-    # Example query
-    query_terms = ["women", "dress"]
-    candidate_docs = index.conjunctive_query(query_terms)
+    # Test queries
+    queries = [
+        "ecko unl shirt",
+        "ecko unlmen shirt round neck",
+        "women polo cotton",
+        "casual clothes slim fit",
+        "biowash innerwear"
+    ]
     
-    print(f"Query: {' '.join(query_terms)}")
-    print(f"Found {len(candidate_docs)} candidate documents")
-    
-    # Rank results
-    ranked_results = ranker.rank_documents(query_terms, candidate_docs)
-    print(f"\nTop 5 results:")
-    for i, (doc_id, score) in enumerate(ranked_results[:5]):
-        print(f"{i+1}. Document {doc_id}: {score:.4f}")
+    # Process each query
+    for query in queries:
+        query_terms = query.lower().split()
+        candidate_docs = index.conjunctive_query(query_terms)
+        
+        print(f"Query: {query}")
+        print(f"Query terms: {query_terms}")
+        
+        if len(candidate_docs) == 0:
+            print("No documents found matching all query terms.")
+            print(f"\n{'='*80}")
+            continue
+        
+        # Rank results
+        ranked_results = ranker.rank_documents(query_terms, candidate_docs)
+        total_results = len(ranked_results)
+        
+        print(f"\nTotal results: {total_results}")
+        print(f"Showing top {min(20, total_results)} results:\n")
+        
+        # Display top 20 results with document information
+        display_count = min(20, total_results)
+        for i, (doc_id, score) in enumerate(ranked_results[:display_count]):
+            doc_info = doc_lookup.get(doc_id, {})
+            title = doc_info.get('title', 'N/A')
+            brand = doc_info.get('brand', 'N/A')
+            category = doc_info.get('category', 'N/A')
+            sub_category = doc_info.get('sub_category', 'N/A')
+            
+            # Get description snippet (first 100 chars)
+            description = doc_info.get('description', '')
+            if description:
+                desc_snippet = description[:100] + ('...' if len(description) > 100 else '')
+            else:
+                desc_snippet = 'N/A'
+            
+            print(f"{i+1:3d}. [Score: {score:.6f}] | PID: {doc_id}")
+            print(f"     Title: {title}")
+            print(f"     Brand: {brand} | Category: {category} | Sub-category: {sub_category}")
+            print(f"     Description: {desc_snippet}")
+            print()
+        
+        if total_results > 20:
+            print(f"... and {total_results - 20} more results (not shown)")
+        print(f"\n{'='*80}")
+        print()

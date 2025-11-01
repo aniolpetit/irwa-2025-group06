@@ -35,9 +35,10 @@ class InvertedIndex:
         self.total_documents += 1
     
     def build_from_corpus(self, corpus_data: List[Dict[str, Any]], 
-                         text_field: str = 'tokens') -> None:
+                         text_field: str = 'tokens', verbose: bool = False) -> None:
 
-        print(f"Building inverted index from {len(corpus_data)} documents...")
+        if verbose:
+            print(f"Building inverted index from {len(corpus_data)} documents...")
         
         for doc in corpus_data:
             doc_id = doc.get('pid', '')
@@ -50,10 +51,10 @@ class InvertedIndex:
             
             self.add_document(doc_id, tokens)
         
-        print(f"Index built successfully. Vocabulary size: {len(self.term_to_docs)}")
-        
-        # Debug: Show first 10 terms in the inverted index
-        self.debug_print_index_samples(n=10)
+        if verbose:
+            print(f"Index built successfully. Vocabulary size: {len(self.term_to_docs)}")
+            # Debug: Show first 10 terms in the inverted index
+            self.debug_print_index_samples(n=10)
     
     def conjunctive_query(self, terms: List[str]) -> Set[str]:
         if not terms:
@@ -110,23 +111,25 @@ class InvertedIndex:
                 print(f"  ... ({len(postings) - 3} more)")
 
 
-def load_processed_corpus(filepath: str) -> List[Dict[str, Any]]:
+def load_processed_corpus(filepath: str, verbose: bool = False) -> List[Dict[str, Any]]:
 
-    print(f"Loading processed corpus from {filepath}...")
+    if verbose:
+        print(f"Loading processed corpus from {filepath}...")
     with open(filepath, 'r', encoding='utf-8') as f:
         corpus = json.load(f)
-    print(f"Loaded {len(corpus)} documents")
+    if verbose:
+        print(f"Loaded {len(corpus)} documents")
     return corpus
 
 
 if __name__ == "__main__":
     # Example usage
     corpus_path = "../part_1/data/processed_corpus.json"
-    corpus = load_processed_corpus(corpus_path)
+    corpus = load_processed_corpus(corpus_path, verbose=True)
     
     # Build inverted index
     index = InvertedIndex()
-    index.build_from_corpus(corpus)
+    index.build_from_corpus(corpus, verbose=True)
     
     # Print statistics
     stats = index.get_vocabulary_stats()
@@ -134,7 +137,3 @@ if __name__ == "__main__":
     for key, value in stats.items():
         print(f"{key}: {value}")
     
-    # Example query
-    query_terms = ["women", "dress"]
-    results = index.conjunctive_query(query_terms)
-    print(f"\nQuery '{' '.join(query_terms)}' returned {len(results)} documents")

@@ -10,185 +10,53 @@
 We decided to select the queries based on their **popularity** and **specificity**. We included queries with high popularity to evaluate whether our retrieval engine can correctly narrow down and rank the most relevant documents among a large pool of potential matches. On the other hand, we added low-popularity queries to test the engine’s ability to retrieve the few documents that contain these rarer terms.
 Furthermore, we applied the same reasoning to specificity: by including both highly specific and more general queries, we can assess whether the engine handles different levels of query precision effectively. Highly specific queries help us test if the engine can accurately match detailed user intent, while broader ones allow us to evaluate how well it manages ambiguity and relevance ranking across a wider range of possible results.
 
-# New queries so that we have some validation docs relevant
-	1.	Query: women sweatshirt 
-	2.	Query: skinny blue jeans
-	3.	Query: v neck t-shirt (hem de mirar perq clean_text treia els -, llavors tshirt equivaldria a shirt i seria dolent no diferenciarho)
-	4.	Query: full sleeve graphic sweatshirt
-	5.	Query: t-shirt pack
-
 # Part 2 (Evaluation) Exercise 3
 
 ## a. For the test queries you defined in Part 1, Step 2 during indexing, assign a binary relevance label to each document: 1 if the document is relevant to the query, or 0 if it is not.
 
-- Full Sleeve Printed Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Striped Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Printed Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Graphic Print Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Solid Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Graphic Print Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Typography Women V Neck Multicolor T-Shirt  (Pack of 2)
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Printed Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Solid Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Graphic Print Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Graphic Print Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Typography Women V Neck Multicolor T-Shirt  (Pack of 2)
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Printed Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Printed Women V Neck Multicolor T-Shirt  (Pack of 2)
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Color Block Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Graphic Print Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Graphic Print Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Solid Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Full Sleeve Solid Women Sweatshirt
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Superhero Women Round Neck Multicolor T-Shirt  (Pack of 2)
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Slim Men Dark Blue Jeans
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Tapered Fit Men Blue Jeans
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Super Skinny Women Blue Jeans
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Slim Women Blue Jeans
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Slim Women Dark Blue Jeans
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Slim Men Blue Jeans
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Tapered Fit Men Blue Jeans
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
-- Super Skinny Men Blue Jeans
-    - Query 1 (ecko unl shirt) (**0**)
-    - Query 2 (ecko unlmen shirt round neck) (**0**)
-    - Query 3 (women polo cotton) (**0**)
-    - Query 4 (casual clothes slim fit) (**0**)
-    - Query 5 (biowash innerwear) (**0**)
+As can be seen in exercise 1.3, our queries yielded either a very large set of documents satisfying the conjunctive query or retrieved no documents at all (an expected behavior in this kind of queries). For simplicity purposes, we'll be labelling only the top 10 documents per each query.
+
+- Query: ecko unl shirt
+    - men slim fit printed casual shirt **1**
+    - men slim fit printed casual shirt **1**
+    - women slim fit printed casual shirt **1**
+    - solid women round neck white t shirt **1**
+    - solid women round neck white t shirt **1**
+    - men slim fit solid casual shirt **1**
+    - men slim fit solid casual shirt **1**
+    - solid women round neck white t shirt **1**
+    - women slim fit solid casual shirt **1**
+    - men slim fit solid casual shirt **1**
+
+- Query: ecko unlmen shirt round neck
+    - No documents found matching all query terms.
+
+- Query: women polo cotton
+    - solid women polo neck black t shirt **1**
+    - solid women polo neck black t shirt **1**
+    - solid women polo neck black t shirt **1**
+    - solid women polo neck white t shirt **1**
+    - solid women polo neck white t shirt **1**
+    - printed women polo neck black blue t shirt **1**
+    - solid women polo neck multicolor t shirt pack of **1**
+    - printed women polo neck blue t shirt **1**
+    - solid women polo neck black t shirt **1**
+    - solid women polo neck white t shirt **1**
+
+- Query: casual clothes slim fit
+    - No documents found matching all query terms.
+
+- Query: biowash innerwear
+    - free authority men vest **0**
+    - free authority women vest **0**
+    - free authority women vest **0**
+    - free authority women vest **0**
+    - free authority men vest **0**
+    - printed men boxer pack of **0**
+    - sayitloud women vest **0**
+    - sayitloud women vest **0**
+    - sayitloud women vest **0**
+    - sayitloud men vest **0**
 
 ## b. Comment on each of the evaluation metrics, stating how they differ, and which information gives each of them. Analyze your results.
 

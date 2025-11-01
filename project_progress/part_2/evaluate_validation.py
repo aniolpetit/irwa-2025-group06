@@ -1,67 +1,7 @@
 import csv
 from typing import Dict, List
-import html
-from bs4 import BeautifulSoup
-import unicodedata
-import re
 
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem import SnowballStemmer
-from nltk.tokenize import word_tokenize
-
-from inverted_index import InvertedIndex, load_processed_corpus
-from tfidf_ranking import TFIDFRanker
 from evaluation_metrics import EvaluationMetrics
-
-# Download NLTK data if not already present
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords')
-
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
-
-try:
-    nltk.data.find('tokenizers/punkt_tab')
-except LookupError:
-    nltk.download('punkt_tab')
-
-
-# Get cleaning function from document preprocessing in part 1
-def clean_text(text: str) -> str:
-    # Unescape HTML
-    text = html.unescape(text)
-    # Remove HTML tags
-    text = BeautifulSoup(text, "html.parser").get_text(separator=" ")
-    # Normalize unicode
-    text = unicodedata.normalize("NFKC", text)
-    # Remove non-alphanumeric characters (except spaces)
-    text = re.sub(r"[^a-zA-Z0-9\s]", " ", text)
-    # Collapse multiple spaces and strip
-    text = re.sub(r"\s+", " ", text).strip()
-    # Lowercase
-    text = text.lower()
-    return text
-
-# Initialize NLTK components
-STOP_WORDS = set(stopwords.words('english'))
-STEMMER = SnowballStemmer('english')
-
-def preprocess_query(query_text: str) -> List[str]:
-    # We need to apply the same preprocessing steps as for the corpus
-    # Clean query text before tokenization
-    cleaned = clean_text(query_text)
-    # Tokenize
-    tokens = word_tokenize(cleaned)
-    # Remove stopwords
-    tokens = [t for t in tokens if t not in STOP_WORDS]
-    # Stem
-    tokens = [STEMMER.stem(t) for t in tokens if len(t) > 2]
-    return tokens
 
 
 def load_validation_labels(filepath: str) -> Dict[int, List[tuple]]:
@@ -86,100 +26,57 @@ def load_validation_labels(filepath: str) -> Dict[int, List[tuple]]:
 
 
 
-def run_tfidf_ranking():
-    # Load corpus
-    corpus_path = "../part_1/data/processed_corpus.json"
-    corpus = load_processed_corpus(corpus_path)
+def get_retrieved_documents_and_labels(validation_data: Dict[int, List[tuple]]) -> Dict[int, tuple]:
+    """
+    Extract retrieved documents and their relevance labels from validation data.
+    The validation CSV contains 20 documents per query in retrieval order.
+    Returns a dict: {query_id: (retrieved_docs, relevance_labels)}
+    """
+    results = {}
     
-    # Build index
-    index = InvertedIndex()
-    index.build_from_corpus(corpus)
+    for query_id, data_list in validation_data.items():
+        # Extract document IDs (pids) in order they appear in CSV (retrieval order)
+        retrieved_docs = [pid for pid, label in data_list]
+        # Extract relevance labels in the same order
+        relevance_labels = [label for pid, label in data_list]
+        
+        results[query_id] = (retrieved_docs, relevance_labels)
     
-    # Create ranker
-    ranker = TFIDFRanker(index, corpus)
+    return results
+
+
+def evaluate_queries():    
+    # Load validation labels - these contain 20 retrieved documents per query with ground truth labels
+    validation_path = "../../data/validation_labels.csv"
+    validation_data = load_validation_labels(validation_path)
     
-    # Define queries
+    # Extract retrieved documents and relevance labels from validation CSV
+    # The CSV order represents the retrieval order
+    retrieved_data = get_retrieved_documents_and_labels(validation_data)
+    
+    # Create evaluator instance
+    evaluator = EvaluationMetrics()
+    
+    # Query texts for display
     query_texts = {
         1: "women full sleeve sweatshirt cotton",
         2: "men slim jeans blue"
     }
     
-    ranked_results = {}
-    
-    for query_id, query_text in query_texts.items():
-        print(f"\nRunning query {query_id}: '{query_text}'")
-        
-        # Preprocess query
-        query_terms = preprocess_query(query_text)
-        print(f"  Preprocessed: {query_terms}")
-        
-        # Get candidates
-        candidate_docs = index.conjunctive_query(query_terms)
-        print(f"  Candidate documents: {len(candidate_docs)}")
-        
-        if candidate_docs:
-            # Rank documents
-            ranked = ranker.rank_documents(query_terms, candidate_docs)
-            # Extract just document IDs
-            ranked_ids = [doc_id for doc_id, score in ranked]
-            print(f"  Ranked results: {len(ranked_ids)} documents")
-        else:
-            ranked_ids = []
-            print("  No results found!")
-        
-        ranked_results[query_id] = ranked_ids
-    
-    return ranked_results
-
-
-def create_relevance_labels(ranked_docs: List[str], validation_data: List[tuple]) -> List[int]:
-    # Create a dict for quick lookup: pid -> label
-    pid_to_label = {pid: label for pid, label in validation_data}
-    
-    # Create relevance labels matching the ranked order
-    relevance_labels = []
-    for doc_id in ranked_docs:
-        # Look up label, default to 0 if not in validation data
-        label = pid_to_label.get(doc_id, 0)
-        relevance_labels.append(label)
-    
-    return relevance_labels
-
-
-def evaluate_queries():    
-    # Load validation labels
-    validation_path = "../../data/validation_labels.csv"
-    validation_data = load_validation_labels(validation_path)
-    
-    # Run TF-IDF ranking
-    print("Running TF-IDF Ranking")
-    ranked_results = run_tfidf_ranking()
-    
-    # Create evaluator instance
-    evaluator = EvaluationMetrics()
-    
     # Evaluate each query
     results = {}
+    relevance_labels_list = []
     
     for query_id in [1, 2]:
         print(f"\nEvaluating Query {query_id}:")
-        if query_id == 1:
-            print("  Query: 'women full sleeve sweatshirt cotton'")
-        else:
-            print("  Query: 'men slim jeans blue'")
+        print(f"  Query: '{query_texts[query_id]}'")
         
-        # Get ranked documents from TF-IDF
-        ranked_docs = ranked_results.get(query_id, [])
-        validation_labels_data = validation_data.get(query_id, [])
+        # Get retrieved documents and relevance labels from CSV (in retrieval order)
+        retrieved_docs, relevance_labels = retrieved_data[query_id]
         
-        print(f"  Retrieved: {len(ranked_docs)} documents")
-        print(f"  Validation data: {len(validation_labels_data)} documents")
-        
-        # Create relevance labels in ranked order from TF-IDF results
-        relevance_labels = create_relevance_labels(ranked_docs, validation_labels_data)
-        
-        # For metrics that need k, we'll use the full length
-        # But we need to handle cases where there might be more documents in validation than retrieved
+        print(f"  Retrieved documents: {len(retrieved_docs)}")
+        print(f"  Relevant documents: {sum(relevance_labels)}")
+        print(f"  Non-relevant documents: {len(relevance_labels) - sum(relevance_labels)}")
         
         # Calculate metrics for different k values (1, 3, 5, 10, and full length)
         k_values = [1, 3, 5, 10]
@@ -205,30 +102,23 @@ def evaluate_queries():
             query_results[f'NDCG@{k}'] = ndcg_at_k
         
         results[query_id] = query_results
-    
-    # Calculate MRR across both queries
-    relevance_labels_list = []
-    for query_id in [1, 2]:
-        ranked_docs = ranked_results.get(query_id, [])
-        validation_labels_data = validation_data.get(query_id, [])
-        relevance_labels = create_relevance_labels(ranked_docs, validation_labels_data)
         relevance_labels_list.append(relevance_labels)
     
+    # Calculate MRR across both queries
     mrr = evaluator.mean_reciprocal_rank(relevance_labels_list)
     
-    # Calculate MAP - use the max k that was calculated
-    max_k = 10  # We calculated up to k=10
+    # Calculate MAP - use the max k that was calculated (use full length for MAP)
+    max_k = len(relevance_labels_list[0]) if relevance_labels_list else 20
     ap_scores = []
     for q in [1, 2]:
         if f'AP@{max_k}' in results[q]:
             ap_scores.append(results[q][f'AP@{max_k}'])
     map_score = evaluator.mean_average_precision(ap_scores) if ap_scores else 0.0
     
-    # Print formatted results
     print("Numeric Results (rounded to 3 decimal places)")
     
     for query_id in [1, 2]:
-        print(f"\nQuery {query_id}:")
+        print(f"\nQuery {query_id} ('{query_texts[query_id]}'):")
         query_results = results[query_id]
         
         for metric_name in sorted(query_results.keys()):
