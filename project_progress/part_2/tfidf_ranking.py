@@ -1,8 +1,3 @@
-"""
-TF-IDF Ranking Implementation for IRWA Final Project - Part 2
-Simple TF-IDF scoring and ranking for search results.
-"""
-
 import math
 from typing import Dict, List, Tuple, Set
 from collections import Counter, defaultdict

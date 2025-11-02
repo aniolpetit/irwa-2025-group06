@@ -1,8 +1,3 @@
-"""
-Evaluation Metrics Implementation for IRWA Final Project - Part 2
-Implements standard information retrieval evaluation metrics.
-"""
-
 import math
 from typing import Dict, List, Set, Tuple
 
