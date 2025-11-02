@@ -19,16 +19,13 @@ Furthermore, we applied the same reasoning to specificity: by including both hig
 
 **a. For the test queries you defined in Part 1, Step 2 during indexing, assign a binary relevance label to each document: 1 if the document is relevant to the query, or 0 if it is not.**
 
-As can be seen in exercise 1.3, our queries yielded either a very large set of documents satisfying the conjunctive query or retrieved no documents at all (an expected behavior in this kind of queries). 
-A MI M'AGRADA MÉS:
 As seen in Exercise 1.3, the conjunctive queries produced highly variable result sizes, from 0 up to more than 1300 documents, consistent with their different popularity and specificity levels. For simplicity purposes, we'll be labelling only the top 10 documents per each query.
-PERQUÈ TENIM UNA DE 74 RESULTS I UNA DE 59
 
 - **Query**: `ecko unl shirt`
     1. men slim fit printed casual shirt **1**
     2. men slim fit printed casual shirt **1**
     3. women slim fit printed casual shirt **1**
-    4. solid women round neck white t shirt **0** (he posat 0 perquè volem una shirt -camisa- i això és una t shirt -> possiblement lu de treure els guionets en el processing és mala idea perquè shirt i t-shirt passen a ser un mateix substring shirt, ho podríem comentar)
+    4. solid women round neck white t shirt **0**
     5. solid women round neck white t shirt **0**
     6. men slim fit solid casual shirt **1**
     7. men slim fit solid casual shirt **1**
@@ -36,7 +33,9 @@ PERQUÈ TENIM UNA DE 74 RESULTS I UNA DE 59
     9. women slim fit solid casual shirt **1**
     10. men slim fit solid casual shirt **1**
 
-- **Query**: `ecko unl men shirt round neck` (hauríem de pensar si volem aquesta query, pensant-ho bé una camisa amb round neck no sé què vol dir)
+    * Justification for the ones that have label 0: shirt is not the same as t-shirt.
+
+- **Query**: `ecko unl men shirt round neck`
     1. printed men round neck black t shirt **0** (again, t-shirt)
     2. printed men round neck black t shirt **0**
     3. printed men round neck black t shirt **0**
@@ -49,7 +48,7 @@ PERQUÈ TENIM UNA DE 74 RESULTS I UNA DE 59
     10. solid men round neck blue t shirt **0**
 
 - **Query**: `women polo cotton`
-(en tots els resultats no sabem si és cotton, com que son conjunctive queries si el sistema l'ha retrieved és que el cotton deu estar en algun field que no estem printing, per tant jo deixaria 1, podríem fer una noteta explicant això)
+
     1. solid women polo neck black t shirt **1**
     2. solid women polo neck black t shirt **1**
     3. solid women polo neck black t shirt **1**
@@ -71,11 +70,11 @@ PERQUÈ TENIM UNA DE 74 RESULTS I UNA DE 59
     3. free authority women vest **1**
     4. free authority women vest **1**
     5. free authority men vest **1**
-    6. printed men boxer pack of **0** (no podem saber on ha trobat el sistema el term biowash, però jo argumentaria que si no està al title ni a la description és que el biowash no defineix el producte)
-    7. sayitloud women vest **0** (igual que el d'abans, terme biowash)
-    8. sayitloud women vest **0** (igual)
-    9. sayitloud women vest **0** (igual)
-    10. sayitloud men vest **0** (igual)
+    6. printed men boxer pack of **1**
+    7. sayitloud women vest **1**
+    8. sayitloud women vest **1**
+    9. sayitloud women vest **1**
+    10. sayitloud men vest **1** 
 
 **b. Comment on each of the evaluation metrics, stating how they differ, and which information gives each of them. Analyze your results.**
 
@@ -89,7 +88,9 @@ Analyzing the results obtained, the system shows relatively low values across mo
 
 The current search system, while functional, has several limitations that restrict its effectiveness in delivering relevant and well-ranked results. One of the main issues lies in its retrieval model, which is based on a simple conjunctive query approach using an inverted index. This means that only documents containing all the query terms are retrieved. Although this ensures precision, it sacrifices recall (many partially relevant documents are ignored simply because they lack one of the query terms, which might be expressed with a synonim for instance). A more flexible retrieval strategy, such as a vector-space model or probabilistic ranking like BM25, would address this by weighting terms by importance and allowing partial matches, producing a smoother balance between precision and recall.
 
-The ranking quality is also limited by now. Although the system incorporates TF-IDF scoring to improve ranking quality, it still faces limitations in capturing semantic relationships and contextual relevance. TF-IDF treats terms as independent and doesn’t account for phrase meaning, synonymy, or field-specific importance. As a result, some documents with high term frequency may appear highly ranked even if they’re contextually less relevant. Moving toward more advanced models such as BM25, embedding-based retrieval, or field-weighted TF-IDF could improve ranking quality by better reflecting semantic importance and user intent.
+The ranking quality is also limited by now. Although the system incorporates TF-IDF scoring to improve ranking quality, it still faces limitations in capturing semantic relationships and contextual relevance. TF-IDF treats terms as independent and doesn't account for phrase meaning, synonymy, or field-specific importance. As a result, some documents with high term frequency may appear highly ranked even if they're contextually less relevant. Moving toward more advanced models such as BM25, embedding-based retrieval, or field-weighted TF-IDF could improve ranking quality by better reflecting semantic importance and user intent.
+
+A related issue emerges from the preprocessing pipeline's handling of hyphenated terms. During text cleaning, hyphens are removed and replaced with spaces (e.g., "t-shirt" becomes "t shirt"), which is then tokenized into separate tokens ["t", "shirt"]. This causes semantic confusion when searching: a query for "shirt" incorrectly matches documents containing "t-shirt" because both share the token "shirt", despite representing fundamentally different product types (a formal shirt versus a casual t-shirt). This problem affects both retrieval accuracy and ranking quality, as the system cannot distinguish between these semantically distinct concepts. This issue could be addressed by preserving hyphenated terms as single tokens during preprocessing (treating "t-shirt" as one unit rather than splitting it), or by employing models that capture term dependencies and phrase-level semantics, such as n-gram indexing, phrase queries, or embedding models that naturally handle multi-word expressions without assuming term independence.
 
 Another structural weakness comes from the uniform treatment of fields. As we defined in the previous deliver, product data contains several fields (e.g., title, brand, description), each contributing differently to relevance. The current index merges tokens without distinguishing their source, so a term appearing in a long description has the same weight as one in the title. Introducing field weighting or multi-field indexing (for example, giving higher scores to title matches) would make the retrieval more semantically meaningful and better aligned with user intent.
 
