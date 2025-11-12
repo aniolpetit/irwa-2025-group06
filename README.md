@@ -115,3 +115,86 @@ python evaluate_validation.py
 **Note:** The validation file contains 20 documents per query with binary relevance labels (0=non-relevant, 1=relevant). The evaluation assumes these 20 documents represent the complete retrieval set for each query.
 
 For further details on implementation decisions, see `project_progress/part_2/IRWA_Part2_Report.md`, also attached in Aula Global's task.
+
+---
+
+## Part 3: Advanced Ranking Experiments
+
+### What is Part 3?
+
+Part 3 extends the retrieval pipeline with additional ranking strategies so you can compare different scoring functions side by side:
+
+1. **BM25 Ranking** (`bm25_search.py`)
+2. **TF-IDF + Cosine (refined interface)** (`tfidf_cosine_search.py`)
+3. **Custom Hybrid Ranker** (`custom_search.py`)
+4. **Word2Vec + Cosine Similarity** (`word2vec_cosine_search.py`)
+
+Each script loads the processed corpus and prints the top-20 results for the five benchmark queries used throughout the project.
+
+### How to Run Part 3
+
+#### Prerequisites
+1. Create and activate your virtual environment (recommended):
+   ```bash
+   python -m venv irwa_venv
+   source irwa_venv/bin/activate
+   ```
+2. Install Python dependencies (note the pinned `gensim==4.4.0`, which ships wheels for every modern Python version):
+   ```bash
+   pip install --upgrade pip setuptools wheel
+   pip install -r requirements.txt
+   ```
+   You can double‑check the installation with:
+   ```bash
+   python - <<'PY'
+   import gensim
+   print('gensim version:', gensim.__version__)
+   PY
+   ```
+   The output should be `gensim version: 4.4.0`. Earlier releases (e.g., 4.3.x) are *not* compatible with Python ≥3.12.
+
+3. Make sure Part 1 has generated `project_progress/part_1/data/processed_corpus.json`, since every ranker relies on it.
+
+#### Step 1: Run BM25 Baseline
+```bash
+cd project_progress/part_3
+python bm25_search.py
+```
+- Adjust hyperparameters by editing the call to `run_bm25_for_queries(...)` (e.g., change `k1`, `b`, or `top_k`).
+
+#### Step 2: Run TF-IDF Cosine (Search Wrapper)
+```bash
+python tfidf_cosine_search.py
+```
+- Mirrors the Part 2 ranker but reuses the search UI from Part 3.
+- Tune the number of returned documents via `top_k`.
+
+#### Step 3: Run Custom Hybrid Ranker
+```bash
+python custom_search.py
+```
+- Combines TF-IDF with field weights, proximity, rating signals, and stock penalties.
+- Inside `CustomRanker`, tweak constants such as `FIELD_WEIGHTS`, `proximity_weight`, or `rating_weight` to experiment.
+
+#### Step 4: Run Word2Vec + Cosine Ranking
+```bash
+python word2vec_cosine_search.py
+```
+- Uses pre-trained word embeddings (averaged) and cosine similarity.
+- Key parameters in `run_word2vec_cosine_for_queries`:
+  - `model_name`: set to `"glove-wiki-gigaword-100"` by default (fast to download). Switch to `"word2vec-google-news-300"` if you already have the model locally.
+  - `model_path`: optional path to a local `.kv`/`.bin`/`.txt` embedding file.
+  - `top_k`: number of ranked documents to display.
+- If you provide a local model file, the ranker tries `KeyedVectors.load`, then `load_word2vec_format(binary=True/False)` automatically.
+
+### Running Custom Queries or Integrating in Notebooks
+Every script exposes a `run_*_for_queries` helper function. You can:
+- Import the desired function in your own module or notebook,
+- Pass a custom list of queries (`List[str]`),
+- Supply a different `corpus_path`, or alter the ranking parameters programmatically.
+
+### Summary of Options
+- **Change the active ranker** by running the corresponding script.
+- **Modify the default query set** in the `if __name__ == "__main__":` block of each file.
+- **Control ranking parameters** via function arguments (`top_k`, `model_name`, `model_path`, BM25’s `k1`/`b`, etc.).
+- **Ensure the correct gensim version** is installed (`4.4.0`) to avoid import/build errors regardless of your Python release.
