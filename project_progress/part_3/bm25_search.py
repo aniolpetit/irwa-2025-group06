@@ -2,7 +2,6 @@ import os
 import sys
 from typing import List, Tuple, Set, Dict
 
-# Allow importing utilities from part_2
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PART2_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", "part_2"))
 if PART2_DIR not in sys.path:

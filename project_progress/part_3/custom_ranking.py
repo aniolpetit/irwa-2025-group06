@@ -5,7 +5,6 @@ from typing import Dict, List, Set, Tuple
 import sys
 import os
 
-# Allow importing utilities from part_2
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PART2_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", "part_2"))
 if PART2_DIR not in sys.path:
@@ -202,7 +201,6 @@ class CustomRanker:
         if not candidate_docs:
             return []
 
-        # Base TF-IDF scores
         base_scores_list = self.tfidf_ranker.rank_documents(query_terms, candidate_docs)
         base_scores = {doc_id: score for doc_id, score in base_scores_list}
 

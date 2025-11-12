@@ -5,28 +5,16 @@ from typing import Dict, List, Set, Tuple
 from typing import Any
 
 try:
-    # Allow reuse from part_2 if available in sys.path by caller
     from inverted_index import InvertedIndex
 except ImportError:
-    # Fallback type alias for static typing; actual runtime requires proper import by caller
-    InvertedIndex = Any  # type: ignore
+    
+    InvertedIndex = Any  
 
 
 class BM25Ranker:
-    """
-    Okapi BM25 ranking implementation.
-
-    score(d, q) = sum over terms t in q:
-        idf(t) *
-        ( tf(t,d) * (k1 + 1) ) / ( tf(t,d) + k1 * (1 - b + b * |d|/avgdl) )
-
-    Where:
-      - tf(t,d) is term frequency of t in document d
-      - |d| is document length in tokens
-      - avgdl is average document length in tokens
-      - idf(t) = log( (N - df(t) + 0.5) / (df(t) + 0.5) )
-      - N is total number of documents, df(t) is document frequency of t
-    """
+    
+    # BM25 ranking implementation using the formula seen in theory (simple version, no k3 for long queries)
+    
 
     def __init__(
         self,
