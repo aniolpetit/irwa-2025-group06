@@ -21,7 +21,7 @@ def run_word2vec_cosine_for_queries(
     corpus_path: str,
     top_k: int = 20,
     model_name: str = "word2vec-google-news-300",
-    model_path: str = None,
+    model_path: Optional[str] = None,
 ) -> Dict[str, List[Tuple[str, float]]]:
     corpus = load_processed_corpus(corpus_path)
     doc_lookup = {doc.get("pid"): doc for doc in corpus if doc.get("pid")}
