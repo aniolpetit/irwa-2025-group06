@@ -16,29 +16,30 @@ The implementation performs conjunctive query filtering (AND) to find all docume
 
 ### 1.2 BM25
 
-BM25 is a probabilistic ranking function that addresses some limitations of TF-IDF, particularly it incorporates term frequency and lenght normalization. BM25 was created as a result of experiments on variations of the probabilistic model.
+BM25 is a probabilistic ranking function that improves upon TF-IDF in two key ways. First, it implements term frequency saturation, meaning that as a term appears more frequently in a document, each additional occurrence contributes less to the relevance score. This prevents documents from being over-rewarded simply because they repeat query terms many times, which is more realistic than TF-IDF's roughly linear relationship between term frequency and score. Second, BM25 uses tunable parameters to balance document length normalization, avoiding TF-IDF's tendency to over-penalize longer documents. These improvements make BM25 particularly effective for collections with documents of varying lengths, as it allows longer documents with detailed descriptions to rank appropriately without being unfairly penalized, while also preventing keyword-stuffed documents from dominating the results.
 
-**BM25 Formula:**
+Our implementation uses a simplified version of BM25 that applies conjunctive query filtering before ranking. The ranking formula is:
+
 ```
-score(d, q) = [Σ idf(t)] × (tf(t,d) × (k1 + 1)) / (tf(t,d) + k1 × (1 - b + b × |d|/avgdl))
+score(d, q) = Σ [idf(t) × (tf(t,d) × (k1 + 1)) / (tf(t,d) + k1 × (1 - b + b × |d|/avgdl))]
 ```
 
 Where:
-- `idf(t) = log((N - df(t) + 0.5) / (df(t) + 0.5))`
+- `idf(t) = log(N / df(t))` (simplified IDF formula)
 - `tf(t,d)` is the term frequency of term t in document d
 - `|d|` is the document length in tokens
 - `avgdl` is the average document length
 - `k1 = 1.2` (TREC value, controls term frequency saturation)
 - `b = 0.75` (TREC value, controls length normalization)
 
+Note that we use a simplified IDF formula `log(N/df)` rather than the full BM25 IDF formula `log((N - df + 0.5) / (df + 0.5))`, and we do not weight query term frequency (no k3 parameter), making this a streamlined version suitable for our use case.
+
 
 ### 1.2.1 Comparison: TF-IDF vs BM25
 
-- New 
-
 We compared **TF-IDF + cosine** similarity and **BM25** on our fashion e-commerce corpus using conjunctive queries. Since all returned documents contain all query terms, the main differences come from how each method handles **document length** and **term frequency**, especially in a setting with short titles and much richer descriptions.
 
-For queries like **“ecko unl shirt”** or **“women polo cotton”**, we observed that TF-IDF tends to favor short, title-driven documents, often with *description = "N/A"*. Cosine normalization over-penalizes longer descriptions, so products whose titles match the query terms get boosted even if their descriptions add little information. In contrast, **BM25 ranks higher those items with longer, more detailed product descriptions** where the query terms appear multiple times (e.g., “single jersey cotton slim fit t-shirt”). Its length normalization (b) and TF saturation let descriptive documents benefit from repeated relevant terms without being overly punished for being longer.
+For queries like **“ecko unl shirt”** or **“women polo cotton”**, we observed that TF-IDF tends to favor short, title-driven documents, often with *description = "N/A"*. Cosine normalization over-penalizes longer descriptions, so products whose titles match the query terms get boosted even if their descriptions add little information. In contrast, **BM25 ranks higher those items with longer, more detailed product descriptions** where the query terms appear multiple times (e.g., “single jersey cotton slim fit t-shirt” PREGUNTA: AIXÒ PER QUINA QUERY?). Its length normalization (b) and TF saturation let descriptive documents benefit from repeated relevant terms without being overly punished for being longer.
 
 For more specific queries such as **“ecko unl men shirt round neck”** or **“biowash innerwear”**, BM25 is better at exploiting rare or attribute-like terms (“round neck”, “biowash”) that appear several times in the description. However, TF-IDF still retrieves reasonable results, but the ranking is dominated by very short titles with exact matches, while BM25 surfaces items whose descriptions give more complete product information. 
 
@@ -52,30 +53,6 @@ Overall, in this corpus BM25 provides rankings that are **more aligned with what
 
 - BM25, on the other hand, models term frequency saturation more realistically and handles length normalization more flexibly. This makes it better suited for our heterogeneous corpus, though it introduces additional parameters (k1, b) and can overly favor long template-like descriptions. Despite these trade-offs, BM25 generally produces rankings that feel more consistent with user search intent in a product-oriented search engine.
 
-- Old
-
-The main differences between TF-IDF and BM25 lie in how they handle document length and term frequency:
-
-**Length Normalization:**
-- **TF-IDF**: Cosine normalization can over-penalize longer documents, often favoring shorter documents even when longer ones contain more relevant information.
-- **BM25**: Tunable length normalization (`b = 0.75`) provides more balanced treatment, allowing longer documents with detailed descriptions to rank appropriately.
-
-**Term Frequency Saturation:**
-- **TF-IDF**: Logarithmic scaling still allows very high term frequencies to dominate scores.
-- **BM25**: Non-linear saturation function prevents excessive dominance from repeated terms, making it more robust to natural term repetition in well-written documents.
-
-**Practical Impact:**
-In our experiments, BM25 tends to rank documents with detailed product descriptions higher, while TF-IDF favors documents with minimal or no descriptions. For example, for the query "ecko unl shirt", BM25's top results include documents with full product descriptions, whereas TF-IDF's top results often have "N/A" descriptions.
-
-**Pros and Cons:**
-
-**TF-IDF:**
-- **Pros**: Simple to implement and interpret; well-established baseline; works well for collections with uniform document lengths; favors concise, focused documents.
-- **Cons**: Can over-penalize longer documents; logarithmic TF scaling still allows high frequencies to dominate; less robust to natural term repetition in detailed descriptions.
-
-**BM25:**
-- **Pros**: Better length normalization with tunable parameters; non-linear term frequency saturation prevents keyword stuffing; more robust to natural term repetition; better suited for heterogeneous document collections; probabilistic foundation.
-- **Cons**: Requires parameter tuning (`k1` and `b`); more complex than TF-IDF; like TF-IDF, lacks semantic understanding and treats terms as independent.
 
 ### 1.3 Custom Score
 
@@ -142,10 +119,18 @@ score = score × length_factor
 - The proximity score uses a minimal-span approach rather than average distance, as it better captures phrase-level relevance
 - Rating and stock signals use small weights to avoid overwhelming textual relevance, but still provide meaningful differentiation
 
-## 2. Ranking Methods Implementation: Word2Vec + Cosine
+## 2. Preprocessing Improvements: Handling Hyphenated Terms
+
+In Part 2, we identified a critical issue with how hyphenated clothing terms were handled during preprocessing. The original dataset contains titles with hyphenated terms like "T-Shirt" or "t-shirt", but during preprocessing, these were being converted to "t shirt" (with a space), which then tokenized into separate tokens ["t", "shirt"]. This caused semantic confusion: a query for "shirt" would incorrectly match documents containing "t-shirt" because both shared the token "shirt", despite representing fundamentally different product types. This problem was evident in two ways: (1) for the query "ecko unl shirt", TF-IDF results included documents with "t-shirt" in the title, which were marked as non-relevant since t-shirts are distinct from shirts; (2) for the query "ecko unl men shirt round neck", all retrieved documents were marked as non-relevant because they all contained "t-shirt" rather than "shirt".
+
+To address this issue, we modified the preprocessing pipeline in Part 1 to properly handle hyphenated terms. The key changes in the `clean_text()` function include normalizing hyphen variants (en-dash, em-dash) to standard hyphens and ensuring that both spaced versions ("t shirt") and already-hyphenated versions ("t-shirt") are normalized to "t-shirt" before tokenization. This ensures that NLTK's `word_tokenize()` treats "t-shirt" as a single token rather than splitting it. As a result, the corpus now contains tokens like "t-shirt" and "round-neck" as atomic units.
+
+The impact of this fix is visible in our current results: for the query "ecko unl shirt", we now retrieve 679 relevant documents, all of which are actual shirts (not t-shirts), demonstrating that "shirt" queries no longer incorrectly match "t-shirt" documents. However, this fix also reveals a limitation: for queries like "ecko unl men shirt round neck", we get no documents matching all query terms because the query contains "round" and "neck" as separate tokens, while documents contain "round-neck" as a single token. This highlights that queries need to be normalized using the same rules as documents to achieve proper matching, which is a consideration for future improvements.
+
+## 3. Ranking Methods Implementation: Word2Vec + Cosine
 
 
-### 2.1 Word2Vec Limitations and Better Alternatives
+### 3.1 Word2Vec Limitations and Better Alternatives
 
 While Word2Vec provides a solid foundation for semantic search, our implementation has inherent limitations that could be addressed with more sophisticated embedding approaches.
 
