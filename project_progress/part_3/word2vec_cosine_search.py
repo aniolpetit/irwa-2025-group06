@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import List, Tuple, Set, Dict
+from typing import List, Tuple, Set, Dict, Optional
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PART2_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", "part_2"))
