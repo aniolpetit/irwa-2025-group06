@@ -39,11 +39,13 @@ Note that we use a simplified IDF formula `log(N/df)` rather than the full BM25 
 
 We compared **TF-IDF + cosine** similarity and **BM25** on our fashion e-commerce corpus using conjunctive queries. Since all returned documents contain all query terms, the main differences come from how each method handles **document length** and **term frequency**, especially in a setting with short titles and much richer descriptions.
 
-For queries like **“ecko unl shirt”** or **“women polo cotton”**, we observed that TF-IDF tends to favor short, title-driven documents, often with *description = "N/A"*. Cosine normalization over-penalizes longer descriptions, so products whose titles match the query terms get boosted even if their descriptions add little information. In contrast, **BM25 ranks higher those items with longer, more detailed product descriptions** where the query terms appear multiple times (e.g., “single jersey cotton slim fit t-shirt” PREGUNTA: AIXÒ PER QUINA QUERY?). Its length normalization (b) and TF saturation let descriptive documents benefit from repeated relevant terms without being overly punished for being longer.
+For queries like **“ecko unl shirt”** or **“women polo cotton”**, we observed that TF-IDF tends to favor short, title-driven documents, often with *description = "N/A"*. Cosine normalization over-penalizes longer descriptions, so products whose titles match the query terms get boosted even if their descriptions add little information. In contrast, **BM25 ranks higher those items with longer, more detailed product descriptions** where the query terms appear multiple times (e.g., “ecko unltd slim fit cotton woven regular navy blue shirt” for the query “ecko unl shirt”). Its length normalization parameter (b) and TF saturation let descriptive documents benefit from repeated relevant terms without being overly punished for being longer.
 
-For more specific queries such as **“ecko unl men shirt round neck”** or **“biowash innerwear”**, BM25 is better at exploiting rare or attribute-like terms (“round neck”, “biowash”) that appear several times in the description. However, TF-IDF still retrieves reasonable results, but the ranking is dominated by very short titles with exact matches, while BM25 surfaces items whose descriptions give more complete product information. 
+For **“women polo cotton”**, the difference becomes even clearer. TF-IDF ranks polo t-shirts with very short descriptions (3–6 words), while BM25 pushes to the top items with long product descriptions containing multiple repetitions of “cotton”, “polo”, “t-shirt”, and related attributes. Some descriptions explicitly contain patterns like **“single jersey cotton slim fit t-shirt”**, which naturally receive higher BM25 scores. This shows BM25’s advantage in attribute-rich domains, where meaningful information is often found in long descriptions rather than in titles alone.
 
-In both models, the query **“casual clothes slim fit”** returns no results, which highlights a limitation of our conjunctive retrieval: if just one term (e.g., “clothes”) is absent from the index, the whole query fails, regardless of the ranking model.
+For **“ecko unl men shirt round neck”**, both models return zero results. This highlights a limitation of conjunctive retrieval: if any query term (e.g., “round” or “neck”) does not appear in documents that already satisfy the other terms, the entire query fails regardless of the ranking model. 
+
+The query **“casual clothes slim fit”** also returns no results in both models, reinforcing the same limitation: conjunctive (AND) semantics can be too strict when rare terms are included.
 
 Overall, in this corpus BM25 provides rankings that are **more aligned with what we would expect from a shopping scenario**: it better exploits detailed descriptions and rare terms, and is more robust to varying document length. TF-IDF remains a useful and simple baseline, especially for short, well-focused documents, but it underuses the rich textual information available in many product descriptions.
 
@@ -52,7 +54,6 @@ Overall, in this corpus BM25 provides rankings that are **more aligned with what
 - TF-IDF is simple, efficient, and reliable for short fields such as product titles. However, its cosine normalization tends to suppress long descriptions and undervalue repeated attribute terms, which is a drawback in our dataset where descriptions often contain crucial fashion-related attributes.
 
 - BM25, on the other hand, models term frequency saturation more realistically and handles length normalization more flexibly. This makes it better suited for our heterogeneous corpus, though it introduces additional parameters (k1, b) and can overly favor long template-like descriptions. Despite these trade-offs, BM25 generally produces rankings that feel more consistent with user search intent in a product-oriented search engine.
-
 
 ### 1.3 Custom Score
 
