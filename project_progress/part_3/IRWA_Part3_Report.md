@@ -55,6 +55,75 @@ Overall, in this corpus BM25 provides rankings that are **more aligned with what
 
 - BM25, on the other hand, models term frequency saturation more realistically and handles length normalization more flexibly. This makes it better suited for our heterogeneous corpus, though it introduces additional parameters (k1, b) and can overly favor long template-like descriptions. Despite these trade-offs, BM25 generally produces rankings that feel more consistent with user search intent in a product-oriented search engine.
 
+- New
+
+### 1.3 Custom Score
+Our custom ranking function builds on TF-IDF + cosine and adds field importance, proximity, and product metadata to better reflect an e-commerce scenario. We keep the TF-IDF cosine score as the main textual relevance signal, using the same index as in Part 2.
+
+**Field-Aware Boosting:**
+Query matches in different fields are weighted unequally:
+  - *Title*: 1.0 (highest weight, as titles are most indicative of relevance)
+  - *Brand*: 0.6 (important for brand-specific queries)
+  - *Subcategory*: 0.5 (helps with categorical matching)
+  - *Details*: 0.3 (moderate importance)
+  - *Description*: 0.2 (lowest weight, as descriptions can be verbose and less focused)
+
+This fixes the “all fields equal” limitation from Part 2: a match in the title or brand matters more than a match buried in a long description. For “ecko unl shirt”, top results are shirts whose titles and brand clearly match the query, even if the description is "N/A".
+
+**Term Proximity Score:**
+We add a proximity score based on the minimal span that covers all query terms:
+- Score: `1 / (1 + best_span)`, where smaller spans yield higher scores
+- This rewards documents where query terms appear close together, using a minimal-span algorithm to find the shortest distance that covers all query terms.
+
+This favors documents where terms like “women polo cotton” or “biowash innerwear” appear close together rather than scattered.
+
+**Metadata Signals:**
+We use numerical fields as hinted: 
+- **Average Rating Boost**: Higher-rated products receive a small boost (normalized to 0-1 scale), reflecting user satisfaction as a relevance signal.
+- **Out-Of-Stock Penalty**: Products that are out of stock are penalized, as they are less useful to users even if textually relevant.
+
+For **“women polo cotton”**, the top items are polo t-shirts with good ratings and reasonable discounts; for **“biowash innerwear”**, biowashed vests with rating 3.9 and in stock appear at the top. So metadata refines the ranking among textually similar products.
+
+**Length Normalization:**
+- Very long descriptions are slightly penalized through a logarithmic length factor, to avoid template-like text dominating and to punish documents with longer-than-average description lenghts. (A small exact match bonus is added if the full query string appears in the title. ES CORRECTE AIXÒ?) 
+- It helps preventing verbose, keyword-stuffed descriptions from dominating the ranking
+- Formula: `penalty = 1 / (1 + λ × log(ratio))` where ratio is description length relative to average
+
+Conjunctive retrieval is still used, so “ecko unl men shirt round neck” and “casual clothes slim fit” return no results, as in TF-IDF and BM25.
+
+**Final Score Formula:**
+```
+score = (TF-IDF_base) 
+      + (field_weight_scale × field_score)
+      + (proximity_weight × proximity_score)
+      + (rating_weight × normalized_rating)
+      - (out_of_stock_penalty)
+      + (exact_match_bonus)
+score = score × length_factor
+```
+
+**Justification and Trade-offs:**
+
+**Pros**
+- *Multi-signal relevance*: The score combines textual similarity (TF-IDF), field importance, proximity, and product metadata (ratings, stock status), producing richer rankings than TF-IDF or BM25 alone.
+- *E-commerce oriented*: Metadata such as rating and availability matter in online shopping; integrating them helps separate highly similar products.
+- *Fixes earlier limitations*: Field weighting corrects the uniform-field issue seen in Part 2, and proximity captures phrase-level relevance ignored by TF-IDF and BM25.
+- *Tunable*: All weights are explicit and can be adapted to observations or evaluation metrics.
+
+**Cons**
+- *Higher complexity*: The score is less interpretable and harder to debug than classic IR models.
+- *Sensitive to parameters*: Field weights, proximity weights, and boosts require tuning and may vary by domain or query type.
+- *More expensive*: Field-aware matching and proximity calculations increase computational cost.
+- *Still title-biased*: Because TF-IDF + cosine is the base, long descriptions remain penalized, which explains why many top results (e.g., “ecko unl shirt”) still show `description = "N/A"`.
+
+**Design Choices**
+- *TF-IDF as the base*: We kept TF-IDF instead of BM25 to remain consistent with earlier parts and because field weights and proximity partially compensate for BM25’s advantages.
+- *Field weights reflect semantic importance*: Title > brand > subcategory > details > description, mirroring how users interpret product relevance.
+- *Minimal-span proximity*: We use the shortest window covering all query terms (rather than average distance) since it captures phrase-like structures more accurately.
+- *Lightweight metadata integration*: Rating and stock availability are included with small weights so they refine, but do not dominate the score.
+
+- Old
+
 ### 1.3 Custom Score
 
 Our custom ranking function combines multiple signals to improve relevance ranking beyond what TF-IDF or BM25 alone can achieve. The score integrates:
