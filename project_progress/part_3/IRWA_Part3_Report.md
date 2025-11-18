@@ -7,7 +7,7 @@
 
 ---
 
-*Note: At the end of the report there's an Appendix showing with results of the code execution, showing the rankings for every metric* 
+*Note: An appendix at the end of this report contains detailed code execution results, including rankings for all ranking methods (TF-IDF, BM25, custom score, and Word2Vec).* 
 
 ## 1. Ranking Methods Implementation: TF-IDF + Cosine, BM25 and Custom Score
 
@@ -156,7 +156,7 @@ Overall, Word2Vec + cosine brings semantic smoothing once candidate documents ex
 
 While Word2Vec provides a solid foundation for semantic search, our implementation has inherent limitations that could be addressed with more sophisticated embedding approaches.
 
-The main weakness of our Word2Vec + averaging approach is that it treats documents as simple bags of words. By averaging individual word vectors, we lose crucial information about word order, context, and document-level semantics. For example, "women polo cotton" and "cotton polo women" would produce identical document vectors despite having different meanings, and we cannot distinguish between documents where query terms appear as a cohesive phrase versus scattered throughout the text.
+The main weakness of our Word2Vec + averaging approach is that it treats documents as simple bags of words. By averaging individual word vectors, we lose crucial information about word order, context, and document-level semantics.
 
 **Doc2Vec (Paragraph Vector)** offers a direct improvement by learning document-level embeddings rather than composing them from word vectors. Doc2Vec extends Word2Vec with a document ID that acts as a memory token, allowing the model to capture document-specific semantics. The two main variants are PV-DM (Distributed Memory), which predicts words from context and document ID, and PV-DBOW (Distributed Bag of Words), which predicts context words from the document ID. The key advantage is that Doc2Vec embeddings are optimized specifically for document-level tasks, potentially capturing thematic coherence and document structure better than averaged word vectors. However, Doc2Vec requires training on your corpus, which adds significant computational overhead and time compared to using pre-trained Word2Vec models. It also needs careful hyperparameter tuning and may struggle with very short documents or queries.
 
