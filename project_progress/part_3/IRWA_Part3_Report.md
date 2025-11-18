@@ -1,4 +1,13 @@
 # Part 3: Ranking & Filtering
+**Github URL**: https://github.com/aniolpetit/irwa-2025-group06
+
+**Github TAG**: IRWA-2025-part-3
+
+**Date:** November 11, 2025
+
+---
+
+*Note: At the end of the report there's an Appendix showing with results of the code execution, showing the rankings for every metric* 
 
 ## 1. Ranking Methods Implementation: TF-IDF + Cosine, BM25 and Custom Score
 
@@ -55,7 +64,6 @@ Overall, in this corpus BM25 provides rankings that are **more aligned with what
 
 - BM25, on the other hand, models term frequency saturation more realistically and handles length normalization more flexibly. This makes it better suited for our heterogeneous corpus, though it introduces additional parameters (k1, b) and can overly favor long template-like descriptions. Despite these trade-offs, BM25 generally produces rankings that feel more consistent with user search intent in a product-oriented search engine.
 
-- New
 
 ### 1.3 Custom Score
 Our custom ranking function builds on TF-IDF + cosine and adds field importance, proximity, and product metadata to better reflect an e-commerce scenario. We keep the TF-IDF cosine score as the main textual relevance signal, using the same index as in Part 2.
@@ -122,72 +130,6 @@ score = score × length_factor
 - *Minimal-span proximity*: We use the shortest window covering all query terms (rather than average distance) since it captures phrase-like structures more accurately.
 - *Lightweight metadata integration*: Rating and stock availability are included with small weights so they refine, but do not dominate the score.
 
-- Old
-
-### 1.3 Custom Score
-
-Our custom ranking function combines multiple signals to improve relevance ranking beyond what TF-IDF or BM25 alone can achieve. The score integrates:
-
-**Base Component:**
-- **TF-IDF cosine similarity** as the foundation, providing a solid baseline for term-based relevance
-
-**Field-Aware Boosting:**
-- Different weights for query term matches in different document fields:
-  - Title: 1.0 (highest weight, as titles are most indicative of relevance)
-  - Brand: 0.6 (important for brand-specific queries)
-  - Subcategory: 0.5 (helps with categorical matching)
-  - Details: 0.3 (moderate importance)
-  - Description: 0.2 (lowest weight, as descriptions can be verbose and less focused)
-
-This addresses the limitation identified in Part 2 where all fields were treated uniformly. A term match in the title should be more valuable than one in a long description.
-
-**Term Proximity Score:**
-- Rewards documents where query terms appear close together, using a minimal-span algorithm to find the shortest distance covering all query terms
-- Score: `1 / (1 + best_span)`, where smaller spans yield higher scores
-- This captures phrase-level relevance: documents where "women polo cotton" appear as a phrase are more relevant than those where the terms are scattered
-
-**Metadata Signals:**
-- **Average rating boost**: Higher-rated products receive a small boost (normalized to 0-1 scale), reflecting user satisfaction as a relevance signal
-- **Out-of-stock penalty**: Products that are out of stock are penalized, as they are less useful to users even if textually relevant
-
-**Length Normalization:**
-- Applies a logarithmic penalty to documents with longer-than-average descriptions
-- Prevents verbose, keyword-stuffed descriptions from dominating the ranking
-- Formula: `penalty = 1 / (1 + λ × log(ratio))` where ratio is description length relative to average
-
-**Exact Match Bonus:**
-- Small bonus when the entire query string appears in the document title, rewarding perfect matches
-
-**Final Score Formula:**
-```
-score = (TF-IDF_base) 
-      + (field_weight_scale × field_score)
-      + (proximity_weight × proximity_score)
-      + (rating_weight × normalized_rating)
-      - (out_of_stock_penalty)
-      + (exact_match_bonus)
-score = score × length_factor
-```
-
-**Justification and Trade-offs:**
-
-**Pros:**
-- **Multi-signal integration**: Combines textual relevance (TF-IDF), structural importance (field weights), semantic proximity, and user value signals (ratings, availability)
-- **Domain-specific optimization**: Tailored for e-commerce search where metadata (ratings, stock status) directly impacts user satisfaction
-- **Addresses known limitations**: Directly tackles issues identified in Part 2: field uniformity, lack of phrase awareness, and ignoring product quality signals
-- **Flexible weighting**: All components are parameterized, allowing fine-tuning based on evaluation results
-
-**Cons:**
-- **Complexity**: More complex than TF-IDF or BM25, making it harder to interpret and debug
-- **Parameter sensitivity**: Requires careful tuning of multiple weights (field weights, proximity weight, rating weight, etc.) which may need query-specific or domain-specific optimization
-- **Computational overhead**: Field-aware scoring and proximity calculation add computational cost compared to simpler methods
-- **Description more penalized**: using tf-idf as the base model penalizes long descriptions, reflecting that in the output where most of the top-20 results have as description "N/A"
-
-**Design Choices:**
-- We chose TF-IDF as the base rather than BM25 to maintain consistency with Part 2 and because the additional signals (field weights, proximity) already address some of BM25's advantages
-- Field weights were set based on intuitive importance (title > brand > category > description)
-- The proximity score uses a minimal-span approach rather than average distance, as it better captures phrase-level relevance
-- Rating and stock signals use small weights to avoid overwhelming textual relevance, but still provide meaningful differentiation
 
 ## 2. Preprocessing Improvements: Handling Hyphenated Terms
 
@@ -199,8 +141,18 @@ The impact of this fix is visible in our current results: for the query "ecko un
 
 ## 3. Ranking Methods Implementation: Word2Vec + Cosine
 
+### 3.1 Empirical Results
+Running `word2vec_cosine_search.py` with the same five benchmark queries reveals how the semantic averaging approach behaves under conjunctive filtering.
 
-### 3.1 Word2Vec Limitations and Better Alternatives
+- **“ecko unl shirt”** still returns the 679 true-shirt products uncovered after the hyphenation fix, but rankings look flatter than with TF-IDF/BM25: Word2Vec surface scores stay within a narrow band (≈0.46–0.48) and mix men’s and women’s shirts interchangeably. Because the model focuses on embedding similarity rather than field-specific signals, descriptive nuances (collar type, gender) barely influence ordering even when present in the metadata.
+- **“ecko unl men shirt round neck”** yields no hits, mirroring the lexical models. Since conjunctive matching happens before embedding scoring, Word2Vec cannot rescue queries that contain terms absent from the filtered postings list (e.g., “round”/“neck” vs. “round-neck”). This underlines that semantic matching only applies to ranking, not retrieval.
+- **“women polo cotton”** demonstrates Word2Vec’s broader semantic reach: alongside polo t-shirts, the top ranks now include cotton trousers and loungewear from the same brand, indicating that embeddings capture brand-level proximity but sometimes blur categorical intent. Items with verbose descriptions packed with brand boilerplate dominate because every word in the long text contributes to the averaged document vector and pulls it closer to the query direction.
+- **“casual clothes slim fit”** again returns zero results due to the AND semantics—Word2Vec cannot compensate for missing exact tokens such as “clothes.”
+- **“biowash innerwear”** produces 59 matches, but their cosine scores are negative and tightly grouped (≈−0.18 to −0.19). This happens because most candidate documents belong to the same “sayitloud” vest family with repetitive descriptions; averaging many near-identical vectors collapses their distinction, so the ranker offers little separation beyond arbitrary ordering.
+
+Overall, Word2Vec + cosine brings semantic smoothing once candidate documents exist, but it still inherits the conjunctive recall ceiling and can over-generalize toward brand or style cues while ignoring fine-grained categorical preferences.
+
+### 3.2 Word2Vec Limitations and Better Alternatives
 
 While Word2Vec provides a solid foundation for semantic search, our implementation has inherent limitations that could be addressed with more sophisticated embedding approaches.
 
@@ -211,4 +163,7 @@ The main weakness of our Word2Vec + averaging approach is that it treats documen
 **Sentence2Vec (Sentence Embeddings)** refers to models specifically designed to encode entire sentences or short texts into fixed-size vectors. Popular examples include Universal Sentence Encoder, Sentence-BERT, and similar transformer-based or siamese network architectures trained on sentence similarity tasks. They excel at capturing semantic relationships between phrases and can understand that "women's polo shirt" and "ladies polo top" are semantically similar even with minimal word overlap. Pre-trained sentence embedding models are readily available and can be used out-of-the-box, making them practical for many applications. The main drawbacks are increased computational cost compared to Word2Vec, potential overfitting to the training domain, and the fact that they may be overkill for very short queries or when exact term matching is important.
 
 For our e-commerce use case, **Doc2Vec would likely provide the best balance** between improvement and practicality. It directly addresses the document-level representation problem without requiring the massive computational resources of transformer-based sentence encoders, and it can be fine-tuned on our product corpus to capture domain-specific semantics. Sentence2Vec would offer superior semantic understanding but at a higher cost, and might actually hurt performance for queries where exact brand names or product codes matter. Ultimately, the choice depends on the trade-off between semantic sophistication and computational efficiency that fits your specific requirements.
+
+## APPENDIX
+
 

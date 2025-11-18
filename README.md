@@ -146,7 +146,7 @@ Each script loads the processed corpus and prints the top-20 results for the fiv
    ```
    You can double‑check the installation with:
    ```bash
-   python - <<'PY'
+   python <<'PY'
    import gensim
    print('gensim version:', gensim.__version__)
    PY
