@@ -162,7 +162,18 @@ The main weakness of our Word2Vec + averaging approach is that it treats documen
 
 **Sentence2Vec (Sentence Embeddings)** refers to models specifically designed to encode entire sentences or short texts into fixed-size vectors. Popular examples include Universal Sentence Encoder, Sentence-BERT, and similar transformer-based or siamese network architectures trained on sentence similarity tasks. They excel at capturing semantic relationships between phrases and can understand that "women's polo shirt" and "ladies polo top" are semantically similar even with minimal word overlap. Pre-trained sentence embedding models are readily available and can be used out-of-the-box, making them practical for many applications. The main drawbacks are increased computational cost compared to Word2Vec, potential overfitting to the training domain, and the fact that they may be overkill for very short queries or when exact term matching is important.
 
-For our e-commerce use case, **Doc2Vec would likely provide the best balance** between improvement and practicality. It directly addresses the document-level representation problem without requiring the massive computational resources of transformer-based sentence encoders, and it can be fine-tuned on our product corpus to capture domain-specific semantics. Sentence2Vec would offer superior semantic understanding but at a higher cost, and might actually hurt performance for queries where exact brand names or product codes matter. Ultimately, the choice depends on the trade-off between semantic sophistication and computational efficiency that fits your specific requirements.
+For our e-commerce use case, **Doc2Vec would likely provide the best balance** between improvement and practicality. It directly addresses the document-level representation problem without requiring the massive computational resources of transformer-based sentence encoders, and it can be fine-tuned on our product corpus to capture domain-specific semantics. Sentence2Vec would offer superior semantic understanding but at a higher cost, and might actually hurt performance for queries where exact brand names or product codes matter. Ultimately, the choice depends on the trade-off between semantic sophistication and computational efficiency that fits the specific requirements.
+
+**Concrete Example: Why Doc2Vec is Better than Averaging**
+
+To illustrate the advantage of Doc2Vec over Word2Vec averaging, consider two product descriptions:
+
+- **Document A**: "Ecko Unltd men's slim fit cotton shirt with round neck"
+- **Document B**: "Ecko Unltd women's cotton shirt, slim fit, round neck style"
+
+With Word2Vec averaging, both documents would produce very similar centroid vectors because they share most of the same words ("Ecko", "Unltd", "cotton", "shirt", "slim", "fit", "round", "neck"). The averaging process treats all words equally and cannot distinguish that Document A is about men's clothing while Document B is about women's clothing.
+
+With Doc2Vec, each document gets its own learned embedding that captures document-level themes. During training, the document ID acts as a memory token that learns to encode document-specific semantics. The model learns that Document A's ID should predict words related to men's clothing, while Document B's ID should predict words related to women's clothing. As a result, the document embeddings can distinguish between these semantically different products even when they share many common terms. This is particularly important in e-commerce where product attributes like gender, size, and style are crucial for relevance.
 
 
 ## APPENDIX
