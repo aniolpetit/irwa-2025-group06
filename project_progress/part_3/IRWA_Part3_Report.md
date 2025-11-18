@@ -35,10 +35,15 @@ score(d, q) = Σ [idf(t) × (tf(t,d) × (k1 + 1)) / (tf(t,d) + k1 × (1 - b + b 
 
 Where:
 - `idf(t) = log(N / df(t))` (simplified IDF formula)
+
 - `tf(t,d)` is the term frequency of term t in document d
+
 - `|d|` is the document length in tokens
+
 - `avgdl` is the average document length
+
 - `k1 = 1.2` (TREC value, controls term frequency saturation)
+
 - `b = 0.75` (TREC value, controls length normalization)
 
 Note that we use a simplified IDF formula `log(N/df)` rather than the full BM25 IDF formula `log((N - df + 0.5) / (df + 0.5))`, and we do not weight query term frequency (no k3 parameter), making this a streamlined version suitable for our use case.
@@ -69,31 +74,44 @@ Overall, in this corpus BM25 provides rankings that are **more aligned with what
 Our custom ranking function builds on TF-IDF + cosine and adds field importance, proximity, and product metadata to better reflect an e-commerce scenario. We keep the TF-IDF cosine score as the main textual relevance signal, using the same index as in Part 2.
 
 **Field-Aware Boosting:**
+
 Query matches in different fields are weighted unequally:
   - *Title*: 1.0 (highest weight, as titles are most indicative of relevance)
+
   - *Brand*: 0.6 (important for brand-specific queries)
+
   - *Subcategory*: 0.5 (helps with categorical matching)
+
   - *Details*: 0.3 (moderate importance)
+
   - *Description*: 0.2 (lowest weight, as descriptions can be verbose and less focused)
 
 This fixes the “all fields equal” limitation from Part 2: a match in the title or brand matters more than a match buried in a long description. For “ecko unl shirt”, top results are shirts whose titles and brand clearly match the query, even if the description is "N/A".
 
 **Term Proximity Score:**
+
 We add a proximity score based on the minimal span that covers all query terms:
+
 - Score: `1 / (1 + best_span)`, where smaller spans yield higher scores
+
 - This rewards documents where query terms appear close together, using a minimal-span algorithm to find the shortest distance that covers all query terms.
 
 This favors documents where terms like “women polo cotton” or “biowash innerwear” appear close together rather than scattered.
 
 **Metadata Signals:**
+
 We use numerical fields as hinted: 
+
 - **Average Rating Boost**: Higher-rated products receive a small boost (normalized to 0-1 scale), reflecting user satisfaction as a relevance signal.
+
 - **Out-Of-Stock Penalty**: Products that are out of stock are penalized, as they are less useful to users even if textually relevant.
 
 For **“women polo cotton”**, the top items are polo t-shirts with good ratings and reasonable discounts; for **“biowash innerwear”**, biowashed vests with rating 3.9 and in stock appear at the top. So metadata refines the ranking among textually similar products.
 
 **Length Normalization:**
-- Very long descriptions are slightly penalized through a logarithmic length factor, to avoid template-like text dominating and to punish documents with longer-than-average description lenghts. (A small exact match bonus is added if the full query string appears in the title. ES CORRECTE AIXÒ?) 
+
+- Very long descriptions are slightly penalized through a logarithmic length factor, to avoid template-like text dominating and to punish documents with longer-than-average description lenghts. 
+
 - It helps preventing verbose, keyword-stuffed descriptions from dominating the ranking
 - Formula: `penalty = 1 / (1 + λ × log(ratio))` where ratio is description length relative to average
 
@@ -113,21 +131,33 @@ score = score × length_factor
 **Justification and Trade-offs:**
 
 **Pros**
+
 - *Multi-signal relevance*: The score combines textual similarity (TF-IDF), field importance, proximity, and product metadata (ratings, stock status), producing richer rankings than TF-IDF or BM25 alone.
+
 - *E-commerce oriented*: Metadata such as rating and availability matter in online shopping; integrating them helps separate highly similar products.
+
 - *Fixes earlier limitations*: Field weighting corrects the uniform-field issue seen in Part 2, and proximity captures phrase-level relevance ignored by TF-IDF and BM25.
+
 - *Tunable*: All weights are explicit and can be adapted to observations or evaluation metrics.
 
 **Cons**
+
 - *Higher complexity*: The score is less interpretable and harder to debug than classic IR models.
+
 - *Sensitive to parameters*: Field weights, proximity weights, and boosts require tuning and may vary by domain or query type.
+
 - *More expensive*: Field-aware matching and proximity calculations increase computational cost.
+
 - *Still title-biased*: Because TF-IDF + cosine is the base, long descriptions remain penalized, which explains why many top results (e.g., “ecko unl shirt”) still show `description = "N/A"`.
 
 **Design Choices**
+
 - *TF-IDF as the base*: We kept TF-IDF instead of BM25 to remain consistent with earlier parts and because field weights and proximity partially compensate for BM25’s advantages.
+
 - *Field weights reflect semantic importance*: Title > brand > subcategory > details > description, mirroring how users interpret product relevance.
+
 - *Minimal-span proximity*: We use the shortest window covering all query terms (rather than average distance) since it captures phrase-like structures more accurately.
+
 - *Lightweight metadata integration*: Rating and stock availability are included with small weights so they refine, but do not dominate the score.
 
 
@@ -145,9 +175,13 @@ The impact of this fix is visible in our current results: for the query "ecko un
 Running `word2vec_cosine_search.py` with the same five benchmark queries reveals how the semantic averaging approach behaves under conjunctive filtering.
 
 - **“ecko unl shirt”** still returns the 679 true-shirt products uncovered after the hyphenation fix, but rankings look flatter than with TF-IDF/BM25: Word2Vec surface scores stay within a narrow band (≈0.46–0.48) and mix men’s and women’s shirts interchangeably. Because the model focuses on embedding similarity rather than field-specific signals, descriptive nuances (collar type, gender) barely influence ordering even when present in the metadata.
+
 - **“ecko unl men shirt round neck”** yields no hits, mirroring the lexical models. Since conjunctive matching happens before embedding scoring, Word2Vec cannot rescue queries that contain terms absent from the filtered postings list (e.g., “round”/“neck” vs. “round-neck”). This underlines that semantic matching only applies to ranking, not retrieval.
+
 - **“women polo cotton”** demonstrates Word2Vec’s broader semantic reach: alongside polo t-shirts, the top ranks now include cotton trousers and loungewear from the same brand, indicating that embeddings capture brand-level proximity but sometimes blur categorical intent. Items with verbose descriptions packed with brand boilerplate dominate because every word in the long text contributes to the averaged document vector and pulls it closer to the query direction.
+
 - **“casual clothes slim fit”** again returns zero results due to the AND semantics—Word2Vec cannot compensate for missing exact tokens such as “clothes.”
+
 - **“biowash innerwear”** produces 59 matches, but their cosine scores are negative and tightly grouped (≈−0.18 to −0.19). This happens because most candidate documents belong to the same “sayitloud” vest family with repetitive descriptions; averaging many near-identical vectors collapses their distinction, so the ranker offers little separation beyond arbitrary ordering.
 
 Overall, Word2Vec + cosine brings semantic smoothing once candidate documents exist, but it still inherits the conjunctive recall ceiling and can over-generalize toward brand or style cues while ignoring fine-grained categorical preferences.
@@ -177,11 +211,15 @@ With Doc2Vec, each document gets its own learned embedding that captures documen
 
 
 ## APPENDIX
-**Tf-Idf + Cosine Results:**
+
+## **Tf-Idf + Cosine Results:**
+
 Query: ecko unl shirt
+
 Query terms: ['ecko', 'unl', 'shirt']
 
 Total results: 679
+
 Showing top 20 results:
 
   1. [Score: 4.199581] | PID: SHTFWBZB2BYWYNEE
@@ -284,19 +322,24 @@ Showing top 20 results:
      Brand: ecko unl | Category: clothing and accessories | Sub-category: topwear
      Description: N/A
 
-... and 659 more results (not shown)
-================================================================================
+    ... and 659 more results (not shown)
 
+---
 
 Query: ecko unl men shirt round neck
+
 Query terms: ['ecko', 'unl', 'men', 'shirt', 'round', 'neck']
+
 No documents found matching all query terms.
-================================================================================
+
+---
 
 Query: women polo cotton
+
 Query terms: ['women', 'polo', 'cotton']
 
 Total results: 729
+
 Showing top 20 results:
 
   1. [Score: 1.800157] | PID: TSHFXVJZYXJNUZH6
@@ -399,19 +442,24 @@ Showing top 20 results:
      Brand: pu | Category: clothing and accessories | Sub-category: topwear
      Description: ess jersey polo
 
-... and 709 more results (not shown)
-================================================================================
+    ... and 709 more results (not shown)
 
+---
 
 Query: casual clothes slim fit
+
 Query terms: ['casual', 'clothes', 'slim', 'fit']
+
 No documents found matching all query terms.
-================================================================================
+
+---
 
 Query: biowash innerwear
+
 Query terms: ['biowash', 'innerwear']
 
 Total results: 59
+
 Showing top 20 results:
 
   1. [Score: 1.326865] | PID: VESFX3ZFMVZDRS4E
@@ -514,14 +562,18 @@ Showing top 20 results:
      Brand:  | Category: clothing and accessories | Sub-category: innerwear and swimwear        
      Description: stay relaxed during your rigorous training sessions wearing this cotton vest combed cotton provides ideal comfort for your skin while a round-neck proves ideal for t-shirts and shirts wear this sleeveless vest from say it loud under your top layer to give your torso a fine finish and strong hold on our muscles it assures excellent freedom of movement featuring slim fit this vest will be a great addition to your wardrobe
 
-... and 39 more results (not shown)
-================================================================================
+    ... and 39 more results (not shown)
 
-**BM25 Results:**
+---
+
+## **BM25 Results:**
+
 Query: ecko unl shirt
+
 Query terms: ['ecko', 'unl', 'shirt']
 
 Total results: 679
+
 Showing top 20 results:
 
   1. [Score: 10.582421] | PID: SHTFWBZFGK4QGMC8
@@ -624,19 +676,24 @@ Showing top 20 results:
      Brand: ecko unl | Category: clothing and accessories | Sub-category: topwear
      Description: ecko unltd slim fit regular beige shirt
 
-... and 659 more results (not shown)
-================================================================================
+    ... and 659 more results (not shown)
 
+---
 
 Query: ecko unl men shirt round neck
+
 Query terms: ['ecko', 'unl', 'men', 'shirt', 'round', 'neck']
+
 No documents found matching all query terms.
-================================================================================
+
+---
 
 Query: women polo cotton
+
 Query terms: ['women', 'polo', 'cotton']
 
 Total results: 729
+
 Showing top 20 results:
 
   1. [Score: 6.252321] | PID: TSHFPDP6XBUKAYTC
@@ -739,19 +796,24 @@ Showing top 20 results:
      Brand: onei | Category: clothing and accessories | Sub-category: topwear
      Description: refresh your clothing with the awesome collection of basic polo t-shirts from oneiro this t-shirt is made of cotton fabric and gives utmost comfort during all temperatures elegant stitch and solid colours makes this t-shirt a perfect formal and casual wear pair it with jeans or casual for a perfect casual look
 
-... and 709 more results (not shown)
-================================================================================
+    ... and 709 more results (not shown)
 
+---
 
 Query: casual clothes slim fit
+
 Query terms: ['casual', 'clothes', 'slim', 'fit']
+
 No documents found matching all query terms.
-================================================================================
+
+---
 
 Query: biowash innerwear
+
 Query terms: ['biowash', 'innerwear']
 
 Total results: 59
+
 Showing top 20 results:
 
   1. [Score: 7.122851] | PID: VESFX3ZFMVZDRS4E
@@ -854,14 +916,18 @@ Showing top 20 results:
      Brand:  | Category: clothing and accessories | Sub-category: innerwear and swimwear        
      Description: stay relaxed during your rigorous training sessions wearing this cotton vest combed cotton provides ideal comfort for your skin while a round-neck proves ideal for t-shirts and shirts wear this sleeveless vest from say it loud under your top layer to give your torso a fine finish and strong hold on our muscles it assures excellent freedom of movement featuring slim fit this vest will be a great addition to your wardrobe
 
-... and 39 more results (not shown)
-================================================================================
+    ... and 39 more results (not shown)
 
-**Custom Score Results:**
+---
+
+## **Custom Score Results:**
+
 Query: ecko unl shirt
+
 Query terms: ['ecko', 'unl', 'shirt']
 
 Total results: 679
+
 Showing top 20 results:
 
   1. [Score: 4.999581] | PID: SHTFWBZB2BYWYNEE
@@ -984,19 +1050,24 @@ Showing top 20 results:
      Rating: None | Discount: 30.0 | Out of stock: True
      Description: N/A
 
-... and 659 more results (not shown)
-================================================================================
+    ... and 659 more results (not shown)
 
+---
 
 Query: ecko unl men shirt round neck
+
 Query terms: ['ecko', 'unl', 'men', 'shirt', 'round', 'neck']
+
 No documents found matching all query terms.
-================================================================================
+
+---
 
 Query: women polo cotton
+
 Query terms: ['women', 'polo', 'cotton']
 
 Total results: 729
+
 Showing top 20 results:
 
   1. [Score: 2.559681] | PID: TSHFXVJZYXJNUZH6
@@ -1119,19 +1190,24 @@ Showing top 20 results:
      Rating: 4.0 | Discount: 53.0 | Out of stock: False
      Description: women s polo collar t-shirt made from cotton and is an essential every day item for every wardrobe
 
-... and 709 more results (not shown)
-================================================================================
+    ... and 709 more results (not shown)
 
+---
 
 Query: casual clothes slim fit
+
 Query terms: ['casual', 'clothes', 'slim', 'fit']
+
 No documents found matching all query terms.
-================================================================================
+
+---
 
 Query: biowash innerwear
+
 Query terms: ['biowash', 'innerwear']
 
 Total results: 59
+
 Showing top 20 results:
 
   1. [Score: 1.812391] | PID: VESFX3ZFMVZDRS4E
@@ -1254,14 +1330,18 @@ Showing top 20 results:
      Rating: 3.0 | Discount: 62.0 | Out of stock: False
      Description: stay relaxed during your rigorous training sessions wearing this cotton vest combed cotton provides ideal comfort for your skin while a round-neck proves ideal for t-shirts and shirts wear this sleeveless vest from say it loud under your top layer to give your torso a fine finish and strong hold on our muscles it assures excellent freedom of movement featuring slim fit this vest will be a great addition to your wardrobe
 
-... and 39 more results (not shown)
-================================================================================
+    ... and 39 more results (not shown)
 
-**Word2Vec + Cosine Results:**
+---
+
+## **Word2Vec + Cosine Results:**
+
 Query: ecko unl shirt
+
 Query terms: ['ecko', 'unl', 'shirt']
 
 Total results: 679
+
 Showing top 20 results:
 
   1. [Score: 0.482317] | PID: SHTFSKF6SHHGJVVJ
@@ -1364,19 +1444,24 @@ Showing top 20 results:
      Brand: ecko unl | Category: clothing and accessories | Sub-category: topwear
      Description: ecko unltd yd check cotton woven slim fit olive indigo shirt
 
-... and 659 more results (not shown)
-================================================================================
+    ... and 659 more results (not shown)
 
+---
 
 Query: ecko unl men shirt round neck
+
 Query terms: ['ecko', 'unl', 'men', 'shirt', 'round', 'neck']
+
 No documents found matching all query terms.
-================================================================================
+
+---
 
 Query: women polo cotton
+
 Query terms: ['women', 'polo', 'cotton']
 
 Total results: 729
+
 Showing top 20 results:
 
   1. [Score: 0.774748] | PID: TSHFPDP6XBUKAYTC
@@ -1479,19 +1564,24 @@ Showing top 20 results:
      Brand: steenb | Category: clothing and accessories | Sub-category: topwear
      Description: steenbok women s pima cotton polo t-shirt
 
-... and 709 more results (not shown)
-================================================================================
+    ... and 709 more results (not shown)
 
+---
 
 Query: casual clothes slim fit
+
 Query terms: ['casual', 'clothes', 'slim', 'fit']
+
 No documents found matching all query terms.
-================================================================================
+
+---
 
 Query: biowash innerwear
+
 Query terms: ['biowash', 'innerwear']
 
 Total results: 59
+
 Showing top 20 results:
 
   1. [Score: -0.175926] | PID: VESFGYJCNNHV7KNG
@@ -1594,11 +1684,8 @@ Showing top 20 results:
      Brand:  | Category: clothing and accessories | Sub-category: innerwear and swimwear        
      Description: the world is boring without a little twist and a twist is what we have added to your favourite round-neck cotton vest with a quotation xxix we made your favourite sleeveless navy blue red colored vest a little better by adding a handsome cut and sew design and quotation on the vest planning a house party or a reunion simply put on this vest and pair it with denim sneakers and youre ready to roll the vest is available in other color options choose your favourite one if you want to look for more options then do check out our entire collection of sayitloud for women t-shirts vest joggers track pants boxers shorts and jackets sayitloud fashion lifestyle workout vest sportswear gymwear vest vest trendy printed vest solid vest latest vest designer vest sayit loud say it loud slim fitvest regular fit vest cut and sew vest deal of the day round-neck vest v-neck vest casual vest regular vest branded vest sleeveless vest
 
-... and 39 more results (not shown)
-================================================================================
+    ... and 39 more results (not shown)
 
-
-
-
+---
 
 ***AI Use*: AI tools were used to help design the general structure of some functions. However, the code logic, analysis approach, test queries, and relevance judgments were fully developed and verified by the team. All AI-generated parts were carefully reviewed, corrected, and adjusted to meet the project requirements. The insights, interpretations, and conclusions presented in this report are entirely the team’s own work.**
