@@ -29,6 +29,15 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 # open browser dev tool to see the cookies
 app.session_cookie_name = os.getenv("SESSION_COOKIE_NAME")
+
+# Add custom Jinja2 filter for number formatting
+@app.template_filter('format_number')
+def format_number_filter(value, format_str='%.2f'):
+    """Format a number using Python's format string"""
+    try:
+        return format_str % float(value)
+    except (ValueError, TypeError):
+        return str(value)
 # instantiate our search engine
 search_engine = SearchEngine()
 # instantiate our in memory persistence
@@ -91,21 +100,22 @@ def search_form_post():
 @app.route('/doc_details', methods=['GET'])
 def doc_details():
     """
-    Show document details page
-    ### Replace with your custom logic ###
+    Show document details page with full document information
     """
-
-    # getting request parameters:
-    # user = request.args.get('user')
-    print("doc details session: ")
-    print(session)
-
-    res = session["some_var"]
-    print("recovered var from session:", res)
-
     # get the query string parameters from request
-    clicked_doc_id = request.args["pid"]
-    print("click in id={}".format(clicked_doc_id))
+    clicked_doc_id = request.args.get("pid")
+    search_id = request.args.get("search_id", "")
+    
+    if not clicked_doc_id:
+        return render_template('doc_details.html', error="Document ID not provided")
+    
+    print(f"Document details requested for id={clicked_doc_id}, search_id={search_id}")
+
+    # Get document from corpus
+    document = corpus.get(clicked_doc_id)
+    
+    if not document:
+        return render_template('doc_details.html', error=f"Document with ID {clicked_doc_id} not found")
 
     # store data in statistics table 1
     if clicked_doc_id in analytics_data.fact_clicks.keys():
@@ -113,9 +123,9 @@ def doc_details():
     else:
         analytics_data.fact_clicks[clicked_doc_id] = 1
 
-    print("fact_clicks count for id={} is {}".format(clicked_doc_id, analytics_data.fact_clicks[clicked_doc_id]))
-    print(analytics_data.fact_clicks)
-    return render_template('doc_details.html')
+    print(f"fact_clicks count for id={clicked_doc_id} is {analytics_data.fact_clicks[clicked_doc_id]}")
+    
+    return render_template('doc_details.html', document=document, search_id=search_id)
 
 
 @app.route('/stats', methods=['GET'])

@@ -1,18 +1,180 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Document Detail - IRWA Search Engine</title>
-</head>
-<body>
-<div><a href="/" >Home</a></div>
-<div><a href="/stats" >Stats</a></div>
-<div><a href="/dashboard" >Dashboard</a></div>
-<h1>Document Detail Page</h1>
-<p>This is a placeholder for document details.</p>
-<p>Here you can display more information about the document.</p>
-<p>For example, you might show the full text of the document, metadata, or other relevant details.</p>
-<p>You can also include links to related documents or resources.</p>
-<p>Feel free to customize this page to fit the needs of your application.</p>
-</body>
-</html>
+{% extends "base.html" %}
+{% block page_title %}Document Details{% endblock %}
+{% block content %}
+    <div class="mb-3">
+        <a href="/" class="btn btn-secondary">← Back to Search</a>
+        {% if search_id %}
+            <a href="javascript:history.back()" class="btn btn-outline-secondary ml-2">← Back to Results</a>
+        {% endif %}
+    </div>
+
+    {% if error %}
+        <div class="alert alert-danger">
+            <h4>Error</h4>
+            <p>{{ error }}</p>
+        </div>
+    {% elif document %}
+        <div class="document-details">
+            <h1 class="mb-4">{{ document.title }}</h1>
+            
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    {% if document.images and document.images|length > 0 %}
+                        <img src="{{ document.images[0] }}" alt="{{ document.title }}" class="img-fluid mb-3" style="max-height: 400px; width: auto;">
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Product Information</h5>
+                            
+                            {% if document.selling_price %}
+                                <div class="mb-3">
+                                    <h3 style="color: #d32f2f;">₹{{ document.selling_price|format_number('%.2f') }}</h3>
+                                    {% if document.actual_price and document.actual_price > document.selling_price %}
+                                        <p class="text-muted" style="text-decoration: line-through;">₹{{ document.actual_price|format_number('%.2f') }}</p>
+                                    {% endif %}
+                                    {% if document.discount %}
+                                        <span class="badge badge-danger">{{ document.discount }}% OFF</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                            
+                            {% if document.average_rating %}
+                                <div class="mb-3">
+                                    <strong>Rating:</strong>
+                                    <span style="color: #ff9800; font-size: 1.2em;">
+                                        {% set rating_int = document.average_rating|int %}
+                                        {% for i in range(rating_int) %}★{% endfor %}
+                                        {% if (document.average_rating|float) % 1 >= 0.5 %}½{% endif %}
+                                    </span>
+                                    <span>({{ document.average_rating|format_number('%.1f') }}/5.0)</span>
+                                </div>
+                            {% endif %}
+                            
+                            <div class="mb-3">
+                                {% if document.out_of_stock %}
+                                    <span class="badge badge-warning badge-lg">Out of Stock</span>
+                                {% else %}
+                                    <span class="badge badge-success badge-lg">In Stock</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if document.brand %}
+                                <p><strong>Brand:</strong> {{ document.brand }}</p>
+                            {% endif %}
+                            
+                            {% if document.seller %}
+                                <p><strong>Seller:</strong> {{ document.seller }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <h3>Description</h3>
+                <p>{{ document.description }}</p>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h4>Product Details</h4>
+                    <table class="table table-bordered">
+                        {% if document.category %}
+                            <tr>
+                                <th>Category</th>
+                                <td>{{ document.category }}</td>
+                            </tr>
+                        {% endif %}
+                        {% if document.sub_category %}
+                            <tr>
+                                <th>Sub-Category</th>
+                                <td>{{ document.sub_category }}</td>
+                            </tr>
+                        {% endif %}
+                        {% if document.brand %}
+                            <tr>
+                                <th>Brand</th>
+                                <td>{{ document.brand }}</td>
+                            </tr>
+                        {% endif %}
+                        {% if document.seller %}
+                            <tr>
+                                <th>Seller</th>
+                                <td>{{ document.seller }}</td>
+                            </tr>
+                        {% endif %}
+                        {% if document.selling_price %}
+                            <tr>
+                                <th>Selling Price</th>
+                                <td>₹{{ document.selling_price|format_number('%.2f') }}</td>
+                            </tr>
+                        {% endif %}
+                        {% if document.actual_price %}
+                            <tr>
+                                <th>Actual Price</th>
+                                <td>₹{{ document.actual_price|format_number('%.2f') }}</td>
+                            </tr>
+                        {% endif %}
+                        {% if document.discount %}
+                            <tr>
+                                <th>Discount</th>
+                                <td>{{ document.discount }}%</td>
+                            </tr>
+                        {% endif %}
+                        {% if document.average_rating %}
+                            <tr>
+                                <th>Average Rating</th>
+                                <td>{{ document.average_rating|format_number('%.2f') }}/5.0</td>
+                            </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Stock Status</th>
+                            <td>
+                                {% if document.out_of_stock %}
+                                    <span class="badge badge-warning">Out of Stock</span>
+                                {% else %}
+                                    <span class="badge badge-success">In Stock</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                
+                {% if document.product_details %}
+                    <div class="col-md-6">
+                        <h4>Additional Details</h4>
+                        <table class="table table-bordered">
+                            {% for key, value in document.product_details.items() %}
+                                <tr>
+                                    <th>{{ key }}</th>
+                                    <td>{{ value }}</td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+            
+            {% if document.images and document.images|length > 1 %}
+                <div class="mb-4">
+                    <h4>Additional Images</h4>
+                    <div class="row">
+                        {% for image_url in document.images[1:] %}
+                            <div class="col-md-3 mb-3">
+                                <img src="{{ image_url }}" alt="{{ document.title }}" class="img-fluid" style="max-height: 200px; width: auto;">
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+            
+            <div class="mt-4">
+                <a href="/" class="btn btn-primary">New Search</a>
+                <a href="/stats" class="btn btn-outline-info ml-2">View Statistics</a>
+                <a href="/dashboard" class="btn btn-outline-info ml-2">View Dashboard</a>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
