@@ -11,63 +11,17 @@
     {% endif %}
     <hr>
     {% for item in results_list %}
-        <div class="pb-4 mb-4" style="border-bottom: 1px solid #e0e0e0; padding-bottom: 15px;">
-            <div class="doc-title mb-2">
-                <h5><a href="{{ item.url }}" style="text-decoration: none; color: #0066cc;">{{ item.title }}</a></h5>
+        <div class="pb-3">
+            <div class="doc-title">
+                <a href="{{ item.url }}">{{ item.title }}...
+                </a>
             </div>
-            
-            <div class="doc-desc mb-2">
-                <p>{{ item.description }}</p>
+            <div class="doc-desc">
+                {{ item.doc_date }} — {{ item.description }}
             </div>
-            
-            <div class="doc-metadata mb-2" style="color: #666; font-size: 0.9em;">
-                {% if item.brand %}
-                    <span class="badge badge-secondary mr-2">Brand: {{ item.brand }}</span>
-                {% endif %}
-                {% if item.category %}
-                    <span class="badge badge-info mr-2">Category: {{ item.category }}</span>
-                {% endif %}
-                {% if item.sub_category %}
-                    <span class="badge badge-primary mr-2">{{ item.sub_category }}</span>
-                {% endif %}
-                {% if item.seller %}
-                    <span class="badge badge-success mr-2">Seller: {{ item.seller }}</span>
-                {% endif %}
-            </div>
-            
-            <div class="doc-pricing mb-2">
-                {% if item.selling_price %}
-                    <strong style="color: #d32f2f; font-size: 1.1em;">Price: ₹{{ item.selling_price|format_number('%.2f') }}</strong>
-                    {% if item.actual_price and item.actual_price > item.selling_price %}
-                        <span style="text-decoration: line-through; color: #999; margin-left: 10px;">₹{{ item.actual_price|format_number('%.2f') }}</span>
-                    {% endif %}
-                {% endif %}
-                {% if item.discount %}
-                    <span class="badge badge-danger ml-2">{{ item.discount }}% OFF</span>
-                {% endif %}
-            </div>
-            
-            <div class="doc-rating mb-2">
-                {% if item.average_rating %}
-                    <span style="color: #ff9800;">
-                        <strong>Rating:</strong> 
-                        {% set rating_int = item.average_rating|int %}
-                        {% for i in range(rating_int) %}★{% endfor %}
-                        {% if (item.average_rating|float) % 1 >= 0.5 %}½{% endif %}
-                        ({{ item.average_rating|format_number('%.1f') }}/5.0)
-                    </span>
-                {% endif %}
-                {% if item.out_of_stock %}
-                    <span class="badge badge-warning ml-2">Out of Stock</span>
-                {% else %}
-                    <span class="badge badge-success ml-2">In Stock</span>
-                {% endif %}
-            </div>
-            
-            <div class="doc-link mt-2">
-                <a href="{{ item.url }}" class="btn btn-sm btn-outline-primary">View Details</a>
-            </div>
+
         </div>
+
     {% endfor %}
 {% endblock %}
 
