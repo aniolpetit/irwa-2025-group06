@@ -36,8 +36,6 @@ full_path = os.path.realpath(__file__)
 path, filename = os.path.split(full_path)
 file_path = path + "/" + os.getenv("DATA_FILE_PATH")
 corpus = load_corpus(file_path)
-# Log first element of corpus to verify it loaded correctly:
-print("\nCorpus is loaded... \n First element:\n", list(corpus.values())[0])
 
 # Initialize search algorithm with processed corpus (contains tokens for indexing)
 processed_corpus_path = os.path.join(path, "project_progress", "part_1", "data", "processed_corpus.json")
