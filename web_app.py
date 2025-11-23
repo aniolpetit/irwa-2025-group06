@@ -9,6 +9,7 @@ from myapp.analytics.analytics_data import AnalyticsData, ClickedDoc
 from myapp.search.load_corpus import load_corpus
 from myapp.search.objects import Document, StatsDocument
 from myapp.search.search_engine import SearchEngine
+from myapp.search.algorithms import SearchAlgorithm
 from myapp.generation.rag import RAGGenerator
 from dotenv import load_dotenv
 load_dotenv()  # take environment variables from .env
@@ -29,20 +30,28 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 # open browser dev tool to see the cookies
 app.session_cookie_name = os.getenv("SESSION_COOKIE_NAME")
-# instantiate our search engine
-search_engine = SearchEngine()
-# instantiate our in memory persistence
-analytics_data = AnalyticsData()
-# instantiate RAG generator
-rag_generator = RAGGenerator()
 
-# load documents corpus into memory.
+# Load documents corpus into memory (for display purposes)
 full_path = os.path.realpath(__file__)
 path, filename = os.path.split(full_path)
 file_path = path + "/" + os.getenv("DATA_FILE_PATH")
 corpus = load_corpus(file_path)
 # Log first element of corpus to verify it loaded correctly:
 print("\nCorpus is loaded... \n First element:\n", list(corpus.values())[0])
+
+# Initialize search algorithm with processed corpus (contains tokens for indexing)
+processed_corpus_path = os.path.join(path, "project_progress", "part_1", "data", "processed_corpus.json")
+print(f"\nInitializing search algorithm with corpus: {processed_corpus_path}")
+search_algorithm = SearchAlgorithm(processed_corpus_path)
+
+# Instantiate search engine with the algorithm
+search_engine = SearchEngine(search_algorithm)
+
+# Instantiate our in memory persistence
+analytics_data = AnalyticsData()
+
+# Instantiate RAG generator
+rag_generator = RAGGenerator()
 
 
 # Home URL "/"
@@ -85,37 +94,76 @@ def search_form_post():
 
     print(session)
 
-    return render_template('results.html', results_list=results, page_title="Results", found_counter=found_count, rag_response=rag_response)
+    return render_template('results.html', results_list=results, page_title="Results", found_counter=found_count, rag_response=rag_response, search_id=search_id)
 
 
 @app.route('/doc_details', methods=['GET'])
 def doc_details():
     """
-    Show document details page
-    ### Replace with your custom logic ###
+    Show document details page with complete product information
     """
-
-    # getting request parameters:
-    # user = request.args.get('user')
-    print("doc details session: ")
-    print(session)
-
-    res = session["some_var"]
-    print("recovered var from session:", res)
-
     # get the query string parameters from request
-    clicked_doc_id = request.args["pid"]
-    print("click in id={}".format(clicked_doc_id))
-
-    # store data in statistics table 1
+    clicked_doc_id = request.args.get("pid")
+    search_id = request.args.get("search_id")
+    
+    if not clicked_doc_id:
+        return render_template('doc_details.html', error="No product ID provided", page_title="Error")
+    
+    # Get document data from search algorithm's processed corpus
+    doc_data = search_algorithm.get_document_by_id(clicked_doc_id)
+    
+    if not doc_data:
+        # Fallback to display corpus
+        doc = corpus.get(clicked_doc_id)
+        if doc:
+            doc_data = {
+                'pid': doc.pid,
+                'title': doc.title,
+                'description': doc.description,
+                'brand': doc.brand,
+                'category': doc.category,
+                'sub_category': doc.sub_category,
+                'product_details': doc.product_details,
+                'seller': doc.seller,
+                'out_of_stock': doc.out_of_stock,
+                'selling_price': doc.selling_price,
+                'discount': doc.discount,
+                'actual_price': doc.actual_price,
+                'average_rating': doc.average_rating,
+                'url': doc.original_url or doc.url,
+                'images': doc.images
+            }
+        else:
+            return render_template('doc_details.html', error="Product not found", page_title="Error")
+    
+    # Handle description fallback
+    description = doc_data.get('description')
+    if not description or (isinstance(description, str) and description.strip() == ''):
+        description = doc_data.get('full_text', '')
+    if not description or (isinstance(description, str) and description.strip() == ''):
+        description = doc_data.get('title', 'No description available')
+    
+    # Handle product_details
+    product_details = doc_data.get('product_details')
+    if product_details is not None and not isinstance(product_details, dict):
+        product_details = None
+    
+    # Store click in analytics
     if clicked_doc_id in analytics_data.fact_clicks.keys():
         analytics_data.fact_clicks[clicked_doc_id] += 1
     else:
         analytics_data.fact_clicks[clicked_doc_id] = 1
-
-    print("fact_clicks count for id={} is {}".format(clicked_doc_id, analytics_data.fact_clicks[clicked_doc_id]))
-    print(analytics_data.fact_clicks)
-    return render_template('doc_details.html')
+    
+    # Get last search query from session for back to results functionality
+    last_search_query = session.get('last_search_query', '')
+    
+    # Pass all available document data to template
+    return render_template('doc_details.html', 
+                          doc=doc_data,
+                          description=description,
+                          product_details=product_details,
+                          last_search_query=last_search_query,
+                          page_title=doc_data.get('title', 'Product Details'))
 
 
 @app.route('/stats', methods=['GET'])

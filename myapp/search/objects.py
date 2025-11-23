@@ -5,7 +5,6 @@ import re
 
 
 class Document(BaseModel):
-    _id: str
     pid: str
     title: str
     description: Optional[str] = None
@@ -20,7 +19,10 @@ class Document(BaseModel):
     actual_price: Optional[float] = None
     average_rating: Optional[float] = None
     url: Optional[str] = None
+    original_url: Optional[str] = None
     images: Optional[List[str]] = None
+    ranking: Optional[float] = None
+    doc_date: Optional[str] = None
 
     def to_json(self):
         return self.model_dump_json()
@@ -68,13 +70,18 @@ class Document(BaseModel):
 
     @field_validator("product_details", mode="before")
     def normalize_product_details(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            return v
         if isinstance(v, list):
             merged = {}
             for item in v:
                 if isinstance(item, dict):
                     merged.update(item)
-            return merged
-        return v
+            return merged if merged else None
+        # If it's a string or other type, return None (not a valid dict)
+        return None
 
     def __str__(self) -> str:
         return self.model_dump_json(indent=2)

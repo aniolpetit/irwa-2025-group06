@@ -11,17 +11,60 @@
     {% endif %}
     <hr>
     {% for item in results_list %}
-        <div class="pb-3">
-            <div class="doc-title">
-                <a href="{{ item.url }}">{{ item.title }}...
+        <div class="result-item pb-4 mb-4" style="border-bottom: 1px solid #e0e0e0;">
+            <div class="doc-title mb-2">
+                <a href="/doc_details?pid={{ item.pid }}&search_id={{ search_id }}" style="color: #1a0dab; text-decoration: none; font-size: 1.2em; font-weight: 500;">
+                    {{ item.title }}
                 </a>
             </div>
-            <div class="doc-desc">
-                {{ item.doc_date }} — {{ item.description }}
+            
+            <div class="doc-desc mb-2" style="color: #545454; line-height: 1.5;">
+                {{ item.description or 'No description available' }}
             </div>
-
+            
+            <div class="doc-meta d-flex flex-wrap align-items-center" style="font-size: 0.9em; color: #70757a; gap: 15px;">
+                {% if item.brand %}
+                    <span><strong>Brand:</strong> {{ item.brand }}</span>
+                {% endif %}
+                
+                {% if item.category %}
+                    <span><strong>Category:</strong> {{ item.category }}</span>
+                {% endif %}
+                
+                {% if item.selling_price %}
+                    <span><strong>Price:</strong> ₹{{ item.selling_price|round(2) }}</span>
+                {% endif %}
+                
+                {% if item.actual_price and item.selling_price and item.actual_price > item.selling_price %}
+                    <span style="text-decoration: line-through; color: #999;">₹{{ item.actual_price|round(2) }}</span>
+                {% endif %}
+                
+                {% if item.discount %}
+                    <span style="color: #137333; font-weight: 600;">{{ item.discount|round(0)|int }}% OFF</span>
+                {% endif %}
+                
+                {% if item.average_rating %}
+                    <span>
+                        <strong>Rating:</strong> 
+                        <span style="color: #fbbc04;">★</span> {{ item.average_rating|round(1) }}
+                    </span>
+                {% endif %}
+                
+                {% if item.out_of_stock %}
+                    <span style="color: #ea4335; font-weight: 600;">Out of Stock</span>
+                {% else %}
+                    <span style="color: #137333; font-weight: 600;">In Stock</span>
+                {% endif %}
+            </div>
+            
+            {% if item.original_url %}
+                <div class="doc-link mt-2">
+                    <a href="{{ item.original_url }}" target="_blank" style="color: #1a73e8; text-decoration: none; font-size: 0.9em;">
+                        View on original website →
+                    </a>
+                </div>
+            {% endif %}
         </div>
-
     {% endfor %}
 {% endblock %}
 
