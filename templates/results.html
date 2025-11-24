@@ -17,11 +17,55 @@
         {% endif %}
     </div>
     <hr>
-    {% if rag_response %}
-        <div class="mb-4 p-3" style="border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9;">
-            <h5>AI-Generated Summary:</h5>
-            <p>{{ rag_response }}</p>
-        </div>
+    {% if rag_result and rag_result.text %}
+        <section class="rag-summary-card mb-4">
+            <div class="rag-summary-header">
+                <div>
+                    <p class="rag-eyebrow">AI-Generated Summary</p>
+                    {% if rag_summary.best %}
+                        <h5 class="rag-summary-title">{{ rag_summary.best }}</h5>
+                    {% else %}
+                        <h5 class="rag-summary-title">Best product recommendation</h5>
+                    {% endif %}
+                </div>
+                {% if rag_result.provider %}
+                    <span class="rag-provider-pill">
+                        {{ rag_result.provider|upper }}
+                        {% if rag_result.model %} · {{ rag_result.model }}{% endif %}
+                    </span>
+                {% endif %}
+            </div>
+            <div class="rag-summary-body">
+                {% if rag_summary.best %}
+                    <div class="summary-row">
+                        <span class="summary-label">Best product</span>
+                        <span class="summary-value">{{ rag_summary.best }}</span>
+                    </div>
+                {% endif %}
+                {% if rag_summary.why %}
+                    <div class="summary-row">
+                        <span class="summary-label">Why it fits</span>
+                        <span class="summary-value">{{ rag_summary.why }}</span>
+                    </div>
+                {% endif %}
+                {% if rag_summary.alternative %}
+                    <div class="summary-row">
+                        <span class="summary-label">Alternative</span>
+                        <span class="summary-value">{{ rag_summary.alternative }}</span>
+                    </div>
+                {% endif %}
+                {% if rag_summary.extra %}
+                    <ul class="summary-extra">
+                        {% for bullet in rag_summary.extra %}
+                            <li>{{ bullet }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                {% if not rag_summary.best and not rag_summary.why and not rag_summary.alternative %}
+                    <p class="mb-0">{{ rag_summary.raw }}</p>
+                {% endif %}
+            </div>
+        </section>
     {% endif %}
     <hr>
     {% for item in results_list %}

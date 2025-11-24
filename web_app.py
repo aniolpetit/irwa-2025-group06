@@ -53,6 +53,40 @@ analytics_data = AnalyticsData()
 rag_generator = RAGGenerator()
 
 
+def parse_rag_summary(summary_text: str):
+    """
+    Parse a free-form LLM response into structured sections for display.
+    """
+    summary = {
+        "raw": summary_text.strip() if summary_text else "",
+        "best": None,
+        "why": None,
+        "alternative": None,
+        "extra": []
+    }
+
+    if not summary_text:
+        return summary
+
+    lines = summary_text.replace("\r", "").splitlines()
+    for line in lines:
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+        normalized = cleaned.lstrip("-•").strip()
+        lower = normalized.lower()
+        if lower.startswith("best product:"):
+            summary["best"] = normalized.split(":", 1)[1].strip()
+        elif lower.startswith("why:"):
+            summary["why"] = normalized.split(":", 1)[1].strip()
+        elif lower.startswith("alternative"):
+            summary["alternative"] = normalized.split(":", 1)[1].strip()
+        else:
+            summary["extra"].append(normalized)
+
+    return summary
+
+
 # Home URL "/"
 @app.route('/')
 def index():
@@ -98,8 +132,19 @@ def search_form_post():
     )
 
     # generate RAG response based on user query and retrieved results
-    rag_response = rag_generator.generate_response(search_query, results)
-    print("RAG response:", rag_response)
+    rag_result = rag_generator.generate_response(search_query, results)
+    if not isinstance(rag_result, dict):
+        rag_result = {"text": rag_result, "provider": None, "model": None}
+    rag_text = rag_result.get("text")
+    rag_summary = parse_rag_summary(rag_text)
+    print(
+        "RAG response metadata:",
+        {
+            "provider": rag_result.get("provider"),
+            "model": rag_result.get("model"),
+        }
+    )
+    print("RAG response:", rag_text)
 
     found_count = len(results)
     session['last_found_count'] = found_count
@@ -112,7 +157,8 @@ def search_form_post():
         results_list=results,
         page_title="Results",
         found_counter=found_count,
-        rag_response=rag_response,
+        rag_result=rag_result,
+        rag_summary=rag_summary,
         search_id=search_id,
         ranking_method_label=ranking_label
     )
