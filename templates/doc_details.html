@@ -13,6 +13,9 @@
                 {% if last_search_query %}
                     <form method="POST" action="/search" style="display: inline-block; margin-left: 10px;">
                         <input type="hidden" name="search-query" value="{{ last_search_query }}">
+                        {% if last_ranking_method %}
+                            <input type="hidden" name="ranking-method" value="{{ last_ranking_method }}">
+                        {% endif %}
                         <button type="submit" class="btn btn-primary">← Back to Results</button>
                     </form>
                 {% endif %}

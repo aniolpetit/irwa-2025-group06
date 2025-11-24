@@ -44,6 +44,7 @@ search_algorithm = SearchAlgorithm(processed_corpus_path)
 
 # Instantiate search engine with the algorithm
 search_engine = SearchEngine(search_algorithm)
+ranking_methods_options = search_algorithm.get_available_methods()
 
 # Instantiate our in memory persistence
 analytics_data = AnalyticsData()
@@ -69,19 +70,32 @@ def index():
 
     print("Remote IP: {} - JSON user browser {}".format(user_ip, agent))
     print(session)
-    return render_template('index.html', page_title="Welcome")
+    selected_method = session.get('last_ranking_method', search_algorithm.DEFAULT_RANKING_METHOD)
+    return render_template(
+        'index.html',
+        page_title="Welcome",
+        ranking_methods=ranking_methods_options,
+        selected_ranking_method=selected_method
+    )
 
 
 @app.route('/search', methods=['POST'])
 def search_form_post():
     
     search_query = request.form['search-query']
+    ranking_method = request.form.get('ranking-method', search_algorithm.DEFAULT_RANKING_METHOD)
 
     session['last_search_query'] = search_query
+    session['last_ranking_method'] = ranking_method
 
     search_id = analytics_data.save_query_terms(search_query)
 
-    results = search_engine.search(search_query, search_id, corpus)
+    results = search_engine.search(
+        search_query,
+        search_id,
+        corpus,
+        ranking_method=ranking_method
+    )
 
     # generate RAG response based on user query and retrieved results
     rag_response = rag_generator.generate_response(search_query, results)
@@ -92,7 +106,16 @@ def search_form_post():
 
     print(session)
 
-    return render_template('results.html', results_list=results, page_title="Results", found_counter=found_count, rag_response=rag_response, search_id=search_id)
+    ranking_label = search_algorithm.get_method_label(ranking_method)
+    return render_template(
+        'results.html',
+        results_list=results,
+        page_title="Results",
+        found_counter=found_count,
+        rag_response=rag_response,
+        search_id=search_id,
+        ranking_method_label=ranking_label
+    )
 
 
 @app.route('/doc_details', methods=['GET'])
@@ -155,12 +178,15 @@ def doc_details():
     # Get last search query from session for back to results functionality
     last_search_query = session.get('last_search_query', '')
     
+    last_ranking_method = session.get('last_ranking_method', search_algorithm.DEFAULT_RANKING_METHOD)
+
     # Pass all available document data to template
     return render_template('doc_details.html', 
                           doc=doc_data,
                           description=description,
                           product_details=product_details,
                           last_search_query=last_search_query,
+                          last_ranking_method=last_ranking_method,
                           page_title=doc_data.get('title', 'Product Details'))
 
 

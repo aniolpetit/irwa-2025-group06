@@ -6,7 +6,16 @@
             ← Back to search
         </a>
     </div>
-    Found <strong>{{ found_counter }}</strong> results...
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+        <div>
+            Found <strong>{{ found_counter }}</strong> results...
+        </div>
+        {% if ranking_method_label %}
+            <div class="ranking-badge">
+                Ranking method: <strong>{{ ranking_method_label }}</strong>
+            </div>
+        {% endif %}
+    </div>
     <hr>
     {% if rag_response %}
         <div class="mb-4 p-3" style="border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9;">
