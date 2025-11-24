@@ -72,27 +72,34 @@ def index():
     return render_template('index.html', page_title="Welcome")
 
 
-@app.route('/search', methods=['POST'])
 def search_form_post():
-    
     search_query = request.form['search-query']
 
     session['last_search_query'] = search_query
 
-    search_id = analytics_data.save_query_terms(search_query)
+    browser_label = _detect_browser_label(request.headers.get('User-Agent'))
+    search_id = analytics_data.save_query_terms(search_query, browser_label=browser_label)
 
     results = search_engine.search(search_query, search_id, corpus)
+    found_count = len(results)
+    analytics_data.update_query_results(search_id, found_count)
 
     # generate RAG response based on user query and retrieved results
     rag_response = rag_generator.generate_response(search_query, results)
     print("RAG response:", rag_response)
 
-    found_count = len(results)
     session['last_found_count'] = found_count
 
     print(session)
 
-    return render_template('results.html', results_list=results, page_title="Results", found_counter=found_count, rag_response=rag_response, search_id=search_id)
+    return render_template(
+        'results.html',
+        results_list=results,
+        page_title="Results",
+        found_counter=found_count,
+        rag_response=rag_response,
+        search_id=search_id
+    )
 
 
 @app.route('/doc_details', methods=['GET'])
@@ -147,10 +154,7 @@ def doc_details():
         product_details = None
     
     # Store click in analytics
-    if clicked_doc_id in analytics_data.fact_clicks.keys():
-        analytics_data.fact_clicks[clicked_doc_id] += 1
-    else:
-        analytics_data.fact_clicks[clicked_doc_id] = 1
+    analytics_data.register_click(doc_data)
     
     # Get last search query from session for back to results functionality
     last_search_query = session.get('last_search_query', '')
@@ -195,7 +199,31 @@ def dashboard():
     visited_docs.sort(key=lambda doc: doc.counter, reverse=True)
 
     for doc in visited_docs: print(doc)
-    return render_template('dashboard.html', visited_docs=visited_docs)
+    analytics_summary = {
+        "top_queries": analytics_data.get_top_queries(),
+        "recent_queries": analytics_data.get_recent_queries(),
+        "browser_share": analytics_data.get_browser_share(),
+        "zero_result_rate": analytics_data.get_zero_result_rate(),
+        "top_brands": analytics_data.get_top_brands(),
+        "price_buckets": analytics_data.get_price_breakdown()
+    }
+
+    return render_template('dashboard.html', visited_docs=visited_docs, analytics_summary=analytics_summary, page_title="Dashboard")
+
+
+def _detect_browser_label(user_agent_header: str | None) -> str:
+    """
+    Build a compact label describing the browser + platform for analytics.
+    """
+    if not user_agent_header:
+        return "Unknown"
+
+    agent = httpagentparser.detect(user_agent_header)
+    browser = agent.get('browser', {}).get('name')
+    platform = agent.get('platform', {}).get('name')
+
+    label_parts = [part for part in [browser, platform] if part]
+    return " / ".join(label_parts) if label_parts else "Unknown"
 
 
 # New route added for generating an examples of basic Altair plot (used for dashboard)

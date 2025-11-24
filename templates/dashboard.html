@@ -23,7 +23,107 @@
     -->
 
     <h3>Dashboard</h3>
-    <iframe src="/plot_number_of_views" width="600" height="400" style="border: none;"></iframe>
+
+    <div class="mb-4">
+        <iframe src="/plot_number_of_views" width="100%" height="400" style="border: none;"></iframe>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Top Queries</h5>
+                    <ul class="list-unstyled mb-0">
+                        {% for item in analytics_summary.top_queries %}
+                            <li><strong>{{ item.query }}</strong> — {{ item.count }} searches</li>
+                        {% else %}
+                            <li>No queries yet.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Recent Searches</h5>
+                    <ul class="list-unstyled mb-0">
+                        {% for event in analytics_summary.recent_queries %}
+                            <li>
+                                <strong>{{ event.terms }}</strong>
+                                <small class="text-muted d-block">Browser: {{ event.browser }} • {{ event.timestamp }}</small>
+                                {% if event.results_count is not none %}
+                                    <small class="text-muted d-block">{{ event.results_count }} results</small>
+                                {% endif %}
+                            </li>
+                        {% else %}
+                            <li>No searches yet.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Zero-result Rate</h5>
+                    <p class="display-6 mb-1">{{ analytics_summary.zero_result_rate }}%</p>
+                    <p class="text-muted">Percentage of searches returning an empty result set.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-1">
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Browser Share</h5>
+                    <ul class="list-unstyled mb-0">
+                        {% for item in analytics_summary.browser_share %}
+                            <li>{{ item.browser }} — {{ item.count }} queries</li>
+                        {% else %}
+                            <li>No traffic recorded yet.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Top Brands by Clicks</h5>
+                    <ul class="list-unstyled mb-0">
+                        {% for item in analytics_summary.top_brands %}
+                            <li>{{ item.brand }} — {{ item.count }} clicks</li>
+                        {% else %}
+                            <li>No brand clicks recorded yet.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-1">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Price Sensitivity</h5>
+                    <div class="row">
+                        {% for item in analytics_summary.price_buckets %}
+                            <div class="col-md-4">
+                                <p class="mb-0"><strong>{{ item.bucket }}</strong></p>
+                                <p class="text-muted mb-0">{{ item.count }} clicks • {{ item.share }}%</p>
+                            </div>
+                        {% else %}
+                            <p>No clicks recorded yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 
 {% endblock %}
