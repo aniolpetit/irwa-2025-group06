@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block page_title %}{{ page_title }}{% endblock %}
 {% block content %}
+    <div class="back-button">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">
+            ← Back to search
+        </a>
+    </div>
     Found <strong>{{ found_counter }}</strong> results...
     <hr>
     {% if rag_response %}

@@ -6,6 +6,17 @@
     color: #404246;
 }
 
+.back-button {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+}
+
+.back-button .btn {
+    padding: 6px 14px;
+    font-size: 0.9em;
+}
+
 .centered {
     text-align: center;
 }
