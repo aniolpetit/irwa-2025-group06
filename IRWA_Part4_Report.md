@@ -37,6 +37,8 @@ Client-side validation was implemented to prevent users from submitting empty qu
 
 ### 2.2 Search Algorithms Integration
 
+PREGUNTA: ÉS MILLOR FER SERVIR TF-IDF OR BM25?
+
 The search functionality was integrated with the TF-IDF ranking algorithm developed in Part 2. A new `SearchAlgorithm` class was created in `myapp/search/algorithms.py` to wrap the TF-IDF ranker and inverted index, making them suitable for web application use. The implementation loads the processed corpus data (which contains preprocessed tokens) and builds the inverted index at initialization time for optimal performance.
 
 The `SearchEngine` class was refactored to use the integrated search algorithm instead of the dummy random search. The search process now performs proper query preprocessing, conjunctive query filtering, and TF-IDF-based ranking to return the most relevant results. The algorithm is initialized once at application startup, ensuring fast response times for user queries.
@@ -71,4 +73,10 @@ A Retrieval-Augmented Generation (RAG) system was implemented to provide AI-gene
 The RAG generator was integrated into the search workflow. After retrieving search results using the TF-IDF ranking algorithm, the system passes both the user query and the ranked results to the RAG generator. The generator formats comprehensive product information including title, description, brand, price, discount, rating, and stock status for each result, then sends this context to the LLM along with the user's query.
 
 The prompt template was designed to instruct the LLM to act as a product advisor, identifying the best matching product and explaining why it fits the user's needs. The system includes error handling to gracefully fall back to a default message when API credentials are missing or API calls fail. The generated summary is displayed prominently at the top of the results page in a dedicated section, providing users with immediate AI-powered insights before they review individual results.
+
+## 4. Web Analytics
+
+Analytics are orchestrated by the `AnalyticsData` helper in `myapp/analytics/analytics_data.py`, which keeps our fact tables in memory so the project can be reproduced without deploying an external database. Whenever a visitor submits a query through `/search`, the route stores the raw text in the Flask session, requests a fresh query identifier via `save_query_terms`, and appends that identifier to every result URL. When the user opens `/doc_details`, the handler reads both the product id and the originating search id, increments the `fact_clicks` counter for that product, and rehydrates the full document so that the details page mirrors what was shown in the results. The landing route also logs the browser user-agent and IP, giving us visibility into device types and laying the groundwork for extensions such as geo or OS level reporting.
+
+The collected data feeds directly into two reporting screens. The `/stats` endpoint converts `fact_clicks` into `StatsDocument` objects and renders them in `templates/stats.html`, producing a ranked list of the most visited products along with their descriptions. The `/dashboard` route builds a richer overview by transforming the same counters into `ClickedDoc` instances, sorting them by engagement, and embedding an Altair bar chart that is rendered server-side by `/plot_number_of_views` and displayed inside an iframe. The dashboard template already loads Chart.js so we can easily add browser share, top queries, or dwell-time visualizations as we extend the instrumentation. Together, these pages demonstrate how we collect, store, and explain user behavior as they search, browse, and return to the results within the application.
 
