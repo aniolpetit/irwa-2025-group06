@@ -74,6 +74,7 @@ The RAG generator was integrated into the search workflow. After retrieving sear
 
 The prompt template was designed to instruct the LLM to act as a product advisor, identifying the best matching product and explaining why it fits the user's needs. The system includes error handling to gracefully fall back to a default message when API credentials are missing or API calls fail. The generated summary is displayed prominently at the top of the results page in a dedicated section, providing users with immediate AI-powered insights before they review individual results.
 
+
 ## 4. Web Analytics
 
 ### 4.1 Data collection
@@ -107,4 +108,16 @@ The `/dashboard` endpoint pulls every aggregation into a single `analytics_summa
 3. **Request/session instrumentation** – Every route (`/`, `/search`, `/doc_details`, `/stats`, `/dashboard`, `/track_dwell`) now bootstraps the analytics session, logs the HTTP request, and forwards the visitor context to `AnalyticsData`. The search results template includes the rank position inside the `/doc_details` link, ensuring clicks are attributed to their slot. The document-details page hosts the dwell-time beacon and exposes the `search_id` so clicks link back to queries.
 
 Because all metrics and charts read from the same in-memory warehouse, instructors can replay traffic in their environment and instantly see the dashboard update without provisioning external services.
+
+PER VOSALTRES, L'ÚLTIM QUE HO TREGUI:
+### 4.4 Reproducing the analytics demo
+
+To populate every widget in a fresh environment, run the following manual test:
+
+1. Start the Flask app, open two browser contexts (normal + incognito), and consent to the geo prompt in one of them.
+2. In the first window, submit at least four queries (include a nonsense query to trigger zero-result counts), open the top three documents per query, wait a few seconds, then return to the results page so dwell events fire. Repeat one query twice to populate “Top Queries”.
+3. In the second window, decline the geo prompt, run two different queries, and open at least one result per query; leave one detail tab open for ≈10 seconds to create longer dwell samples.
+4. Visit `/dashboard` and `/stats` from both windows to log request traffic. Optionally hit a missing route to record a 404, so the status breakdown chart shows more than HTTP 200s.
+
+Following those steps yields non-zero values everywhere: KPI cards update, missions show as “search journey”, the geo/device/OS counters differentiate “Unknown” from real locations, price/brand charts render with slices/bars, and the dwell histogram displays returning-time buckets.
 
