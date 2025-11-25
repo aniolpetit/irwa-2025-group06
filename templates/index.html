@@ -13,6 +13,13 @@
                            aria-label="Search"
                            autofocus="autofocus"
                            required>
+                    <select class="form-select ranking-select" name="ranking-method" aria-label="Select ranking method">
+                        {% for method in ranking_methods %}
+                            <option value="{{ method.id }}" {% if method.id == selected_ranking_method %}selected{% endif %}>
+                                {{ method.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
                     <button class="btn btn-primary search-button" type="submit">Search</button>
                 </div>
                 <input name="upf-irwa-hidden" type="hidden" value="123">

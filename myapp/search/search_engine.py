@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from myapp.search.objects import Document
 from myapp.search.algorithms import SearchAlgorithm
 
@@ -27,7 +27,14 @@ class SearchEngine:
         """
         self.search_algorithm = search_algorithm
     
-    def search(self, search_query: str, search_id: int, corpus: dict, top_k: int = 20) -> List[Document]:
+    def search(
+        self,
+        search_query: str,
+        search_id: int,
+        corpus: dict,
+        top_k: int = 20,
+        ranking_method: Optional[str] = None
+    ) -> List[Document]:
         """
         Perform search using the integrated search algorithm.
         
@@ -44,7 +51,11 @@ class SearchEngine:
             return []
         
         # Perform search using TF-IDF ranking
-        ranked_results = self.search_algorithm.search(search_query, top_k=top_k)
+        ranked_results = self.search_algorithm.search(
+            search_query,
+            top_k=top_k,
+            ranking_method=ranking_method
+        )
         
         # Convert results to Document objects for web display
         results = []

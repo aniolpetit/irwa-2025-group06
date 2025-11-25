@@ -48,6 +48,7 @@ search_algorithm = SearchAlgorithm(processed_corpus_path)
 
 # Instantiate search engine with the algorithm
 search_engine = SearchEngine(search_algorithm)
+ranking_methods_options = search_algorithm.get_available_methods()
 
 # Instantiate our in memory persistence
 analytics_data = AnalyticsData()
@@ -74,6 +75,41 @@ def _highlight_text(text: str, query_terms: list) -> str:
         highlighted = re.sub(f"(?i)({escaped})", r"<strong>\1</strong>", highlighted)
     return highlighted
 
+def parse_rag_summary(summary_text: str):
+    """
+    Parse a free-form LLM response into structured sections for display.
+    """
+    summary = {
+        "raw": summary_text.strip() if summary_text else "",
+        "best": None,
+        "why": None,
+        "alternative": None,
+        "extra": []
+    }
+
+    if not summary_text:
+        return summary
+
+    lines = summary_text.replace("\r", "").splitlines()
+    for line in lines:
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+        normalized = cleaned.lstrip("-•").strip()
+        lower = normalized.lower()
+        if lower.startswith("best product:"):
+            summary["best"] = normalized.split(":", 1)[1].strip()
+        elif lower.startswith("why:"):
+            summary["why"] = normalized.split(":", 1)[1].strip()
+        elif lower.startswith("alternative"):
+            summary["alternative"] = normalized.split(":", 1)[1].strip()
+        else:
+            summary["extra"].append(normalized)
+
+    return summary
+
+
+# Home URL "/"
 @app.route('/')
 def index():
     session_id, context = _prepare_request_context()
@@ -91,12 +127,21 @@ def index():
 
     print("Remote IP: {} - JSON user browser {}".format(user_ip, agent))
     print(session)
+    # TO DO: ARREGLAR
     response = render_template('index.html', page_title="Welcome")
     _log_request(session_id, context)
     return response
+    selected_method = session.get('last_ranking_method', search_algorithm.DEFAULT_RANKING_METHOD)
+    return render_template(
+        'index.html',
+        page_title="Welcome",
+        ranking_methods=ranking_methods_options,
+        selected_ranking_method=selected_method
+    )
 
 
 @app.route('/search', methods=['POST'])
+# TO DO: ARREGLAR
 def search_form_post():
     search_query = request.form['search-query']
     session_id, context = _prepare_request_context()
@@ -111,7 +156,10 @@ def search_form_post():
         context["country"] = country_override
     if city_override:
         context["city"] = city_override
+    ranking_method = request.form.get('ranking-method', search_algorithm.DEFAULT_RANKING_METHOD)
+
     session['last_search_query'] = search_query
+    session['last_ranking_method'] = ranking_method
 
     search_id = analytics_data.save_query_terms(
         search_query,
@@ -126,19 +174,38 @@ def search_form_post():
         city=context.get("city"),
     )
 
-    results = search_engine.search(search_query, search_id, corpus)
+    results = search_engine.search(
+        search_query,
+        search_id,
+        corpus,
+        ranking_method=ranking_method
+    )
     found_count = len(results)
     analytics_data.update_query_results(search_id, found_count)
 
     # generate RAG response based on user query and retrieved results
-    rag_response = rag_generator.generate_response(search_query, results)
-    print("RAG response:", rag_response)
+    rag_result = rag_generator.generate_response(search_query, results)
+    if not isinstance(rag_result, dict):
+        rag_result = {"text": rag_result, "provider": None, "model": None}
+    rag_text = rag_result.get("text")
+    rag_summary = parse_rag_summary(rag_text)
+    print(
+        "RAG response metadata:",
+        {
+            "provider": rag_result.get("provider"),
+            "model": rag_result.get("model"),
+        }
+    )
+    print("RAG response:", rag_text)
 
     session['last_found_count'] = found_count
 
     print(session)
 
+    # TO DO: CORRECT
     response = render_template(
+    ranking_label = search_algorithm.get_method_label(ranking_method)
+    return render_template(
         'results.html',
         results_list=results,
         page_title="Results",
@@ -149,6 +216,11 @@ def search_form_post():
     latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
     _log_request(session_id, context, latency_ms=latency_ms)
     return response
+        rag_result=rag_result,
+        rag_summary=rag_summary,
+        search_id=search_id,
+        ranking_method_label=ranking_label
+    )
 
 
 @app.route('/doc_details', methods=['GET'])
@@ -232,7 +304,7 @@ def doc_details():
 
     # Get last search query from session for back to results functionality
     last_search_query = session.get('last_search_query', '')
-
+    # TO DO: CORRECT
     # Pass all available document data to template
     response = render_template(
         'doc_details.html',
@@ -245,6 +317,17 @@ def doc_details():
     )
     _log_request(session_id, context)
     return response
+    
+    last_ranking_method = session.get('last_ranking_method', search_algorithm.DEFAULT_RANKING_METHOD)
+
+    # Pass all available document data to template
+    return render_template('doc_details.html', 
+                          doc=doc_data,
+                          description=description,
+                          product_details=product_details,
+                          last_search_query=last_search_query,
+                          last_ranking_method=last_ranking_method,
+                          page_title=doc_data.get('title', 'Product Details'))
 
 
 @app.route('/stats', methods=['GET'])
