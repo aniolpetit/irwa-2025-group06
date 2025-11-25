@@ -127,21 +127,18 @@ def index():
 
     print("Remote IP: {} - JSON user browser {}".format(user_ip, agent))
     print(session)
-    # TO DO: ARREGLAR
-    response = render_template('index.html', page_title="Welcome")
-    _log_request(session_id, context)
-    return response
     selected_method = session.get('last_ranking_method', search_algorithm.DEFAULT_RANKING_METHOD)
-    return render_template(
+    response = render_template(
         'index.html',
         page_title="Welcome",
         ranking_methods=ranking_methods_options,
         selected_ranking_method=selected_method
     )
+    _log_request(session_id, context)
+    return response
 
 
 @app.route('/search', methods=['POST'])
-# TO DO: ARREGLAR
 def search_form_post():
     search_query = request.form['search-query']
     session_id, context = _prepare_request_context()
@@ -202,25 +199,20 @@ def search_form_post():
 
     print(session)
 
-    # TO DO: CORRECT
-    response = render_template(
     ranking_label = search_algorithm.get_method_label(ranking_method)
-    return render_template(
+    response = render_template(
         'results.html',
         results_list=results,
         page_title="Results",
         found_counter=found_count,
-        rag_response=rag_response,
-        search_id=search_id
-    )
-    latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
-    _log_request(session_id, context, latency_ms=latency_ms)
-    return response
         rag_result=rag_result,
         rag_summary=rag_summary,
         search_id=search_id,
         ranking_method_label=ranking_label
     )
+    latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+    _log_request(session_id, context, latency_ms=latency_ms)
+    return response
 
 
 @app.route('/doc_details', methods=['GET'])
@@ -302,9 +294,10 @@ def doc_details():
         rank_position=rank_position,
     )
 
-    # Get last search query from session for back to results functionality
+    # Get last search query/ranking to support back navigation
     last_search_query = session.get('last_search_query', '')
-    # TO DO: CORRECT
+    last_ranking_method = session.get('last_ranking_method', search_algorithm.DEFAULT_RANKING_METHOD)
+
     # Pass all available document data to template
     response = render_template(
         'doc_details.html',
@@ -312,22 +305,12 @@ def doc_details():
         description=description,
         product_details=product_details,
         last_search_query=last_search_query,
+        last_ranking_method=last_ranking_method,
         page_title=doc_data.get('title', 'Product Details'),
         search_id=search_id,
     )
     _log_request(session_id, context)
     return response
-    
-    last_ranking_method = session.get('last_ranking_method', search_algorithm.DEFAULT_RANKING_METHOD)
-
-    # Pass all available document data to template
-    return render_template('doc_details.html', 
-                          doc=doc_data,
-                          description=description,
-                          product_details=product_details,
-                          last_search_query=last_search_query,
-                          last_ranking_method=last_ranking_method,
-                          page_title=doc_data.get('title', 'Product Details'))
 
 
 @app.route('/stats', methods=['GET'])
