@@ -191,5 +191,46 @@
                 closeImageModal();
             }
         });
+        
+        (function () {
+            const docId = "{{ doc.pid|default('') }}";
+            if (!docId) {
+                return;
+            }
+            const searchId = "{{ search_id|default('') }}";
+            const startTime = performance.now();
+            let sent = false;
+
+            function sendDwellTime() {
+                if (sent) {
+                    return;
+                }
+                sent = true;
+                const dwellMs = Math.max(0, Math.round(performance.now() - startTime));
+                const payload = JSON.stringify({
+                    doc_id: docId,
+                    search_id: searchId || null,
+                    dwell_ms: dwellMs
+                });
+                const blob = new Blob([payload], {type: 'application/json'});
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/track_dwell', blob);
+                } else {
+                    fetch('/track_dwell', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: payload,
+                        keepalive: true
+                    });
+                }
+            }
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    sendDwellTime();
+                }
+            });
+            window.addEventListener('beforeunload', sendDwellTime);
+        })();
     </script>
 {% endblock %}
