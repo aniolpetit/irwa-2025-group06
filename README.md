@@ -198,3 +198,16 @@ Every script exposes a `run_*_for_queries` helper function. You can:
 - **Modify the default query set** in the `if __name__ == "__main__":` block of each file.
 - **Control ranking parameters** via function arguments (`top_k`, `model_name`, `model_path`, BM25’s `k1`/`b`, etc.).
 - **Ensure the correct gensim version** is installed (`4.4.0`) to avoid import/build errors regardless of your Python release.
+
+## Part 4: RAG, User Interface, and Web Analytics
+
+### Reproducing the analytics demo
+
+To populate every widget in a fresh environment, run the following manual test:
+
+1. Start the Flask app, open two browser contexts (normal + incognito), and consent to the geo prompt in one of them.
+2. In the first window, submit at least four queries (include a nonsense query to trigger zero-result counts), open the top three documents per query, wait a few seconds, then return to the results page so dwell events fire. Repeat one query twice to populate “Top Queries”.
+3. In the second window, decline the geo prompt, run two different queries, and open at least one result per query; leave one detail tab open for ≈10 seconds to create longer dwell samples.
+4. Visit `/dashboard` and `/stats` from both windows to log request traffic. Optionally hit a missing route to record a 404, so the status breakdown chart shows more than HTTP 200s.
+
+Following those steps yields non-zero values everywhere: KPI cards update, missions show as “search journey”, the geo/device/OS counters differentiate “Unknown” from real locations, price/brand charts render with slices/bars, and the dwell histogram displays returning-time buckets.

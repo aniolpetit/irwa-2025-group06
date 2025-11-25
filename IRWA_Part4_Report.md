@@ -144,15 +144,7 @@ The `/dashboard` endpoint pulls every aggregation into a single `analytics_summa
 
 Because all metrics and charts read from the same in-memory warehouse, instructors can replay traffic in their environment and instantly see the dashboard update without provisioning external services.
 
-ÚTLIM QUE HO TREGUI
-### 4.4 Reproducing the analytics demo
+---
 
-To populate every widget in a fresh environment, run the following manual test:
-
-1. Start the Flask app, open two browser contexts (normal + incognito), and consent to the geo prompt in one of them.
-2. In the first window, submit at least four queries (include a nonsense query to trigger zero-result counts), open the top three documents per query, wait a few seconds, then return to the results page so dwell events fire. Repeat one query twice to populate “Top Queries”.
-3. In the second window, decline the geo prompt, run two different queries, and open at least one result per query; leave one detail tab open for ≈10 seconds to create longer dwell samples.
-4. Visit `/dashboard` and `/stats` from both windows to log request traffic. Optionally hit a missing route to record a 404, so the status breakdown chart shows more than HTTP 200s.
-
-Following those steps yields non-zero values everywhere: KPI cards update, missions show as “search journey”, the geo/device/OS counters differentiate “Unknown” from real locations, price/brand charts render with slices/bars, and the dwell histogram displays returning-time buckets.
+***AI Use*: AI tools were used to help design the general structure of some functions. However, the code logic, analysis approach, test queries, and relevance judgments were fully developed and verified by the team. All AI-generated parts were carefully reviewed, corrected, and adjusted to meet the project requirements. The insights, interpretations, and conclusions presented in this report are entirely the team’s own work.**
 

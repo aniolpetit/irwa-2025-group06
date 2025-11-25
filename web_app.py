@@ -8,6 +8,7 @@ from typing import Optional
 
 import httpagentparser  # for getting the user agent as json
 from flask import Flask, render_template, session, request
+from markupsafe import Markup, escape
 
 from myapp.analytics.analytics_data import AnalyticsData, ClickedDoc
 from myapp.search.load_corpus import load_corpus
@@ -56,24 +57,32 @@ analytics_data = AnalyticsData()
 # Instantiate RAG generator
 rag_generator = RAGGenerator()
 
-def _highlight_text(text: str, query_terms: list) -> str:
+def _highlight_text(text: Optional[str], query_terms: list[str]) -> Optional[Markup]:
     """
     Wrap occurrences of query terms in <strong>..</strong>. Case-insensitive.
-    Longer terms matched first to avoid nested highlights.
+    Longer terms matched first to avoid nested highlights. Returns escaped HTML.
     """
     if not text:
-        return text
-    # Avoid double-highlighting: work on a copy
-    highlighted = text
-    # Sort by length desc so longer terms replaced first
-    for term in sorted(set(query_terms), key=len, reverse=True):
-        term = term.strip()
-        if not term:
-            continue
-        escaped = re.escape(term)
-        # Case-insensitive replacement, preserve original case
-        highlighted = re.sub(f"(?i)({escaped})", r"<strong>\1</strong>", highlighted)
-    return highlighted
+        return None
+
+    highlighted = str(escape(text))
+    if not query_terms:
+        return Markup(highlighted)
+
+    for term in sorted({t.strip() for t in query_terms if t.strip()}, key=len, reverse=True):
+        escaped_term = re.escape(term)
+        highlighted = re.sub(f"(?i)({escaped_term})", r"<strong>\1</strong>", highlighted)
+
+    return Markup(highlighted)
+
+
+def _extract_query_terms(query: str) -> list[str]:
+    """
+    Split the raw search query into individual terms for highlighting.
+    """
+    if not query:
+        return []
+    return [term for term in re.split(r"\s+", query.strip()) if term]
 
 def parse_rag_summary(summary_text: str):
     """
@@ -154,6 +163,7 @@ def search_form_post():
     if city_override:
         context["city"] = city_override
     ranking_method = request.form.get('ranking-method', search_algorithm.DEFAULT_RANKING_METHOD)
+    query_terms = _extract_query_terms(search_query)
 
     session['last_search_query'] = search_query
     session['last_ranking_method'] = ranking_method
@@ -200,9 +210,16 @@ def search_form_post():
     print(session)
 
     ranking_label = search_algorithm.get_method_label(ranking_method)
+    highlighted_results = []
+    for doc in results:
+        doc_data = doc.model_dump()
+        doc_data["highlighted_title"] = _highlight_text(doc.title, query_terms)
+        doc_data["highlighted_description"] = _highlight_text(doc.description, query_terms)
+        highlighted_results.append(doc_data)
+
     response = render_template(
         'results.html',
-        results_list=results,
+        results_list=highlighted_results,
         page_title="Results",
         found_counter=found_count,
         rag_result=rag_result,
@@ -315,10 +332,6 @@ def doc_details():
 
 @app.route('/stats', methods=['GET'])
 def stats():
-    """
-    Show simple statistics example. ### Replace with yourdashboard ###
-    :return:
-    """
 
     session_id, context = _prepare_request_context()
     docs = []
