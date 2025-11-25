@@ -201,7 +201,59 @@ Every script exposes a `run_*_for_queries` helper function. You can:
 
 ## Part 4: RAG, User Interface, and Web Analytics
 
-### Reproducing the analytics demo
+### What is Part 4?
+
+Part 4 packages all previous components into a single Flask product search portal. It delivers:
+
+1. A polished search/results/details experience wired to the production corpus.
+2. A ranking selector that toggles TF-IDF, BM25, Word2Vec, and a custom hybrid ranker at runtime.
+3. Retrieval-Augmented Generation (Groq or OpenAI) that summarizes the best match plus an alternative.
+4. Full-funnel analytics covering sessions, missions, queries, clicks, dwell time, geo/device segments, and dashboard visualizations.
+
+### How to Run Part 4
+
+#### Prerequisites
+1. Run Part 1 so `project_progress/part_1/data/processed_corpus.json` exists.
+2. Make sure all dependencies are installed dependencies (ideally inside `irwa_venv`). For more reference refer to Part 3, when the step by step is explained.
+3. Create a `.env` file in the repository root. At minimum set:
+   ```
+   SECRET_KEY = "afgsreg86sr897b6st8b76va8er76fcs6g8d7"
+   DEBUG = True
+   SESSION_COOKIE_NAME = "IRWA_SEARCH_ENGINE"
+   DATA_FILE_PATH = "data/fashion_products_dataset.json"
+   ```
+   Optional RAG settings (only needed if you want AI summaries):
+   ```
+   GROQ_API_KEY=sk-...
+   GROQ_MODEL=llama-3.1-8b-instant
+   OPENAI_API_KEY=sk-...
+   OPENAI_MODEL=gpt-4o-mini
+   LLM_PROVIDER=groq   # or openai
+   ```
+   We used our own API keys in this part, make sure to create yours if you want this functionnality available
+
+#### Step 1: Start the Flask server
+```bash
+python web_app.py
+```
+The app listens on `http://localhost:8088` (override host/port in `web_app.py` if necessary).
+
+#### Step 2: Run searches and switch ranking algorithms
+1. Visit `/` to load the search page.
+2. Enter any query and use the “Ranking method” drop-down to pick **TF-IDF (cosine)**, **BM25**, **Word2Vec (cosine)**, or **Custom hybrid**.
+3. Submit the form. The chosen method is stored in the session, displayed on the results page, and reused by document details/back-navigation flows.
+
+#### Step 3: Inspect results, AI summaries, and product details
+- Result cards highlight query terms, show product metadata, and expose the AI box (if credentials are available). Without keys, the UI shows a friendly “RAG unavailable” notice.
+- Click a title to open `/doc_details?pid=...&search_id=...`, review the two-column layout, and use **Back to Results** to re-run the same query with the preserved ranking method.
+- The stats table (`/stats`) lists top-clicked PIDs, while `/dashboard` renders KPI cards plus Altair charts for sessions, devices, dwell, status codes, brands, and price buckets.
+
+#### Step 4: (Optional) Customize the RAG provider
+- Set `LLM_PROVIDER=groq` or `openai` to prefer one client. The app automatically falls back to whichever API key is available.
+- Adjust `GROQ_MODEL` / `OPENAI_MODEL` to experiment with different LLMs without touching code.
+- The generated summary follows a “Best product / Why / Alternative” structure enforced by `myapp/generation/rag.py`.
+
+#### Step 5: Reproducing the analytics demo
 
 To populate every widget in a fresh environment, run the following manual test:
 

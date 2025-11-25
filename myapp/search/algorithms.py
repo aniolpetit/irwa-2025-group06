@@ -20,6 +20,8 @@ from bm25_ranking import BM25Ranker
 from word2vec_ranking import Word2VecRanker
 from custom_ranking import CustomRanker
 
+from myapp.search.preprocessing import preprocess_query
+
 
 class SearchAlgorithm:
     """
@@ -82,8 +84,8 @@ class SearchAlgorithm:
         if not query or not query.strip():
             return []
         
-        # Preprocess query: lowercase and split
-        query_terms = query.lower().strip().split()
+        # Preprocess query using the same pipeline as the indexed tokens
+        query_terms = preprocess_query(query)
         
         if not query_terms:
             return []
