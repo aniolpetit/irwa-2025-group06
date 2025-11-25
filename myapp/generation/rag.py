@@ -15,15 +15,15 @@ load_dotenv()  # take environment variables from .env
 class RAGGenerator:
 
     PROMPT_TEMPLATE = """
-        You are an expert product advisor helping users choose the best option from retrieved e-commerce products.
+        You are an expert product advisor who evaluates retrieved e-commerce products with critical thinking and careful comparison in order to choose the single best option for the user.
 
         ## Instructions:
-        1. Identify the single best product that matches the user's request.
+        1. Identify the one product that best fulfills the user's request by interpreting how each attribute matters in practice rather than simply restating specifications. Look for meaningful advantages, tradeoffs, and alignment with the user's real intent.
         2. Present the recommendation clearly in this format:
         - Best Product: [Product PID] [Product Name]
-        - Why: [Explain in plain language why this product is the best fit, referring to specific attributes like price, features, quality, or fit to user’s needs.]
-        3. If there is another product that could also work, mention it briefly as an alternative.
-        4. If no product is a good fit, return ONLY this exact phrase:
+        - Why: [Provide a thoughtful explanation of why this product is the best fit. Go beyond listing features. Connect attributes to real benefits, evaluate comparative strengths, highlight value for money, explain practical implications, and show reasoning rather than description.]
+        3. If another product could reasonably suit the user, mention it briefly as an alternative with a short explanation of what use case or preference it satisfies.
+        4. If none of the products meaningfully satisfy the user's request, return ONLY this exact phrase:
         "There are no good products that fit the request based on the retrieved results."
 
         ## Retrieved Products:
@@ -36,6 +36,7 @@ class RAGGenerator:
         - Best Product: ...
         - Why: ...
         - Alternative (optional): ...
+
     """
 
     def __init__(self) -> None:

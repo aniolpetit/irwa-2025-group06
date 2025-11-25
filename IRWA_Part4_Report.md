@@ -68,11 +68,46 @@ The page displays all relevant document properties prominently, including title,
 
 ## 3. RAG Implementation
 
-A Retrieval-Augmented Generation (RAG) system was implemented to provide AI-generated summaries of search results. The `RAGGenerator` class was created in `myapp/generation/rag.py` to integrate with the Groq API, a third-party LLM service. The RAG system takes the user's search query and the retrieved product documents, then generates intelligent recommendations highlighting the best matching products.
+The Retrieval-Augmented Generation (RAG) layer lives in `myapp/generation/rag.py` and now boots both Groq and OpenAI clients based on environment variables (`GROQ_API_KEY`, `OPENAI_API_KEY`, `LLM_PROVIDER`). When the `/search` route finishes TF-IDF ranking, those `Document` objects are serialized with price, rating, stock and brand metadata, spliced into a sturdy prompt template, and dispatched to whichever client is available. The generator returns the text together with the model metadata so the UI can disclose which LLM produced the recommendation.
 
-The RAG generator was integrated into the search workflow. After retrieving search results using the TF-IDF ranking algorithm, the system passes both the user query and the ranked results to the RAG generator. The generator formats comprehensive product information including title, description, brand, price, discount, rating, and stock status for each result, then sends this context to the LLM along with the user's query.
+### 3.1 First working version (Groq baseline)
 
-The prompt template was designed to instruct the LLM to act as a product advisor, identifying the best matching product and explaining why it fits the user's needs. The system includes error handling to gracefully fall back to a default message when API credentials are missing or API calls fail. The generated summary is displayed prominently at the top of the results page in a dedicated section, providing users with immediate AI-powered insights before they review individual results.
+We first wired the app to Groq's `llama-3.1-8b-instant` model because Groq's Python SDK is lightweight and matches the OpenAI chat completion schema, so the only code we needed was the `Groq(api_key=...)` client factory plus a fallback message when credentials are missing. Once the key was stored in `.env`, the RAG block in the results page began to render multi-sentence summaries such as the one below.
+
+![Groq output rendered with the baseline prompt](rag-baseline.png)
+
+The baseline already highlighted the PID, quoted the 25 % discount, and suggested an alternative. However, the copy was unstructured (single paragraph) and sometimes recommended out-of-stock items without pointing that out, so we captured metrics to guide further refinement.
+
+### 3.2 Techniques we explored for better answers
+
+1. **Change response format** - This really does not affect the content of the LLM summary as such, but it really improved readibility and made it much more understandable. You can compare the previous image with the original formatting against our new format in the following image:
+![Groq output rendered with the baseline prompt and an improved formatting](rag-baseline-groq-skin.png)
+2. **Alternative model (OpenAI)** – We added optional initialization of `OpenAI(api_key=...)` and let `LLM_PROVIDER` express a preference order. This made it trivial to compare Groq and OpenAI outputs on identical retrieval contexts, so we could see how using different models affects the output.
+3. **Prompt refinement** – The original prompt simply asked for “best product” and “alternative”. We rewrote it to emphasise critical comparison, practical benefits, and explicit justification for why the winning item beats the alternative. We also nudged the model to call out stock issues rather than ignoring them.
+
+### 3.3 How the iterations changed the output
+
+To measure the effect of each change we recorded the UI after every iteration and analysed the pros and cons of each snapshot.
+
+![Groq baseline inside the redesigned card](rag-baseline-groq-skin.png)
+
+*The Groq baseline card* already exposed the rating (4.1/5) and price ₹711 but still repeated the title twice and only vaguely referenced availability, so shoppers still had to verify stock status manually.
+
+![OpenAI baseline with the original prompt](rag-baseline-openai-skin.png)
+
+*The OpenAI baseline* used the same prompt yet produced slightly richer wording (“breathability”, “reasonable discount”). Nevertheless it factored in just rating and price, so cold-start queries where metadata was sparse still produced generic advice.
+
+![Groq output after the prompt rewrite](rag-refined-prompt-groq.png)
+
+*Groq + refined prompt* yielded the most concise yet actionable explanation. The text now justifies why waiting for the out-of-stock product might be worth it (rating, discount, original price) and contrasts it with an in-stock option, which solved the main UX complaint from our first test.
+
+![OpenAI output after the prompt rewrite](rag-refined-prompt-openai.png)
+
+*OpenAI + refined prompt* produced the longest narrative. It now references fabric quality, colour versatility, and explicitly warns that the alternative is out of stock. The downside is that it sometimes over-explains (several long sentences) which can push other content below the fold on smaller laptops. Overall, both providers now justify their picks with concrete attributes, mention stock limitations, and use consistent layout metadata (provider badge, PID, alternative) so the AI box reads like a trustworthy assistant rather than a generic paragraph.
+
+### 3.4 Conclusion
+
+Changing only the card layout already lifted perceived quality because the summary became scannable without altering the text. Switching between Groq and OpenAI showed that the Groq model is faster and concise while OpenAI is wordier and spots softer attributes such as fabric or styling. The prompt rewrite was the most impactful tweak: regardless of the model, it forced explicit reasoning about rating, pricing, and stock so the assistant now surfaces trade-offs the user would otherwise miss. Together these steps gave us a RAG module that is explainable, visually consistent, and adaptable to different LLM providers.
 
 ## 4. Web Analytics
 
