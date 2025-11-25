@@ -673,7 +673,7 @@ class AnalyticsData:
         chart = (
             alt.Chart(df)
             .mark_bar()
-            .encode(x="Document ID", y=alt.Y("Number of Views", axis=alt.Axis(tickMinStep=1)))
+            .encode(x="Document ID", y=alt.Y("Number of Views", axis=alt.Axis(format="d", tickMinStep=1)))
             .properties(title="Number of Views per Document", width=350, height=250)
         )
         caption = "<p class='chart-caption'>Bars show which documents attract the most attention based on registered clicks.</p>"
@@ -687,7 +687,7 @@ class AnalyticsData:
         chart = (
             alt.Chart(df)
             .mark_line(point=True)
-            .encode(x="hour", y="count")
+            .encode(x="hour", y=alt.Y("count", axis=alt.Axis(format="d", tickMinStep=1)))
             .properties(title="Sessions by Hour of Day", width=350, height=250)
         )
         caption = "<p class='chart-caption'>Line trend explains traffic peaks across the day for capacity planning.</p>"
@@ -701,7 +701,7 @@ class AnalyticsData:
         chart = (
             alt.Chart(df)
             .mark_bar()
-            .encode(x="Status Code:O", y=alt.Y("Count", axis=alt.Axis(tickMinStep=1)))
+            .encode(x="Status Code:O", y=alt.Y("Count", axis=alt.Axis(format="d", tickMinStep=1)))
             .properties(title="HTTP Request Status Breakdown", width=350, height=250)
         )
         caption = "<p class='chart-caption'>Bars distinguish successful vs error HTTP responses so we can monitor reliability.</p>"
@@ -715,7 +715,10 @@ class AnalyticsData:
         chart = (
             alt.Chart(df)
             .mark_bar()
-            .encode(x=alt.X("Dwell Time (ms)", bin=alt.Bin(maxbins=30)), y=alt.Y("count()", axis=alt.Axis(tickMinStep=1)))
+            .encode(
+                x=alt.X("Dwell Time (ms)", bin=alt.Bin(maxbins=30)),
+                y=alt.Y("count()", axis=alt.Axis(format="d", tickMinStep=1)),
+            )
             .properties(title="Dwell Time Distribution", width=350, height=250)
         )
         caption = "<p class='chart-caption'>Histogram shows how long users stay on result pages before returning.</p>"
@@ -732,12 +735,6 @@ class AnalyticsData:
             .encode(theta="share", color="bucket", tooltip=["bucket", "count", "share"])
             .properties(title="Price Sensitivity", width=450, height=320)
         )
-        text = (
-            alt.Chart(df)
-            .mark_text(radius=140, size=12, color="black")
-            .encode(theta="share", text=alt.Text("share", format=".1f"), color="bucket")
-        )
-        chart = chart + text
         caption = "<p class='chart-caption'>Pie slices show how clicks distribute across budget, mid-range, and premium buckets.</p>"
         return self._render_chart(chart, caption)
 
@@ -749,7 +746,11 @@ class AnalyticsData:
         chart = (
             alt.Chart(df)
             .mark_bar()
-            .encode(x=alt.X("count:Q", axis=alt.Axis(tickMinStep=1)), y=alt.Y("brand:N", sort="-x"), tooltip=["brand", "count"])
+            .encode(
+                x=alt.X("count:Q", axis=alt.Axis(format="d", tickMinStep=1)),
+                y=alt.Y("brand:N", sort="-x"),
+                tooltip=["brand", "count"],
+            )
             .properties(title="Top Brands by Clicks", width=450, height=300)
         )
         caption = "<p class='chart-caption'>Horizontal bars highlight which brands users click the most.</p>"
