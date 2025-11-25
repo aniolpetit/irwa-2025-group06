@@ -16,7 +16,13 @@
                     <button class="btn btn-primary search-button" type="submit">Search</button>
                 </div>
                 <input name="upf-irwa-hidden" type="hidden" value="123">
+                <input type="hidden" name="country" id="geo-country">
+                <input type="hidden" name="city" id="geo-city">
+                <input type="hidden" name="geo_source" id="geo-source" value="unknown">
             </form>
+            <p class="text-muted small mt-2" id="geo-consent-note" style="display: none;">
+                Sharing your approximate location (country/city only) helps us analyse usage patterns. You can decline and we will mark it as "Unknown".
+            </p>
         </div>
     </div>
     <script>
@@ -28,5 +34,49 @@
             }
             return true;
         }
+        document.addEventListener('DOMContentLoaded', function () {
+            const countryInput = document.getElementById('geo-country');
+            const cityInput = document.getElementById('geo-city');
+            const sourceInput = document.getElementById('geo-source');
+            const consentNote = document.getElementById('geo-consent-note');
+
+            function applyGeo(country, city, source) {
+                if (!countryInput || !cityInput || !sourceInput) return;
+                countryInput.value = country || '';
+                cityInput.value = city || '';
+                sourceInput.value = source || 'unknown';
+                if (country || city) {
+                    sessionStorage.setItem('geoCountry', country || '');
+                    sessionStorage.setItem('geoCity', city || '');
+                    sessionStorage.setItem('geoSource', source || 'unknown');
+                }
+            }
+
+            const storedCountry = sessionStorage.getItem('geoCountry');
+            const storedCity = sessionStorage.getItem('geoCity');
+            const storedSource = sessionStorage.getItem('geoSource');
+            if (storedCountry || storedCity) {
+                applyGeo(storedCountry, storedCity, storedSource || 'session');
+                return;
+            }
+
+            if (consentNote) {
+                consentNote.style.display = 'block';
+            }
+
+            if (!window.confirm('Share your approximate location (country/city only) for analytics?')) {
+                applyGeo('', '', 'declined');
+                return;
+            }
+
+            fetch('https://ipapi.co/json/')
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    applyGeo(data.country_name || '', data.city || '', 'ipapi');
+                })
+                .catch(function () {
+                    applyGeo('', '', 'lookup_failed');
+                });
+        });
     </script>
 {% endblock %}
