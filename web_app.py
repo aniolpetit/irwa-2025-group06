@@ -1,3 +1,4 @@
+import re
 import os
 import time
 import uuid
@@ -54,6 +55,24 @@ analytics_data = AnalyticsData()
 # Instantiate RAG generator
 rag_generator = RAGGenerator()
 
+def _highlight_text(text: str, query_terms: list) -> str:
+    """
+    Wrap occurrences of query terms in <strong>..</strong>. Case-insensitive.
+    Longer terms matched first to avoid nested highlights.
+    """
+    if not text:
+        return text
+    # Avoid double-highlighting: work on a copy
+    highlighted = text
+    # Sort by length desc so longer terms replaced first
+    for term in sorted(set(query_terms), key=len, reverse=True):
+        term = term.strip()
+        if not term:
+            continue
+        escaped = re.escape(term)
+        # Case-insensitive replacement, preserve original case
+        highlighted = re.sub(f"(?i)({escaped})", r"<strong>\1</strong>", highlighted)
+    return highlighted
 
 @app.route('/')
 def index():
