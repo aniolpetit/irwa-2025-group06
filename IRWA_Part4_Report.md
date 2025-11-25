@@ -109,6 +109,7 @@ The `/dashboard` endpoint pulls every aggregation into a single `analytics_summa
 
 Because all metrics and charts read from the same in-memory warehouse, instructors can replay traffic in their environment and instantly see the dashboard update without provisioning external services.
 
+ÚTLIM QUE HO TREGUI
 ### 4.4 Reproducing the analytics demo
 
 To populate every widget in a fresh environment, run the following manual test:
