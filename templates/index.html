@@ -52,18 +52,18 @@
                 countryInput.value = country || '';
                 cityInput.value = city || '';
                 sourceInput.value = source || 'unknown';
-                if (country || city) {
-                    sessionStorage.setItem('geoCountry', country || '');
-                    sessionStorage.setItem('geoCity', city || '');
-                    sessionStorage.setItem('geoSource', source || 'unknown');
-                }
+                sessionStorage.setItem('geoCountry', country || '');
+                sessionStorage.setItem('geoCity', city || '');
+                sessionStorage.setItem('geoSource', source || 'unknown');
+                sessionStorage.setItem('geoPromptHandled', 'true');
             }
 
             const storedCountry = sessionStorage.getItem('geoCountry');
             const storedCity = sessionStorage.getItem('geoCity');
             const storedSource = sessionStorage.getItem('geoSource');
-            if (storedCountry || storedCity) {
-                applyGeo(storedCountry, storedCity, storedSource || 'session');
+            const promptHandled = sessionStorage.getItem('geoPromptHandled');
+            if (promptHandled) {
+                applyGeo(storedCountry || '', storedCity || '', storedSource || 'session');
                 return;
             }
 
