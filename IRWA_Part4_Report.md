@@ -17,7 +17,11 @@
    - 2.4 [Document Details Page](#24-document-details-page)
 3. [RAG Implementation](#3-rag-implementation)
 4. [Web Analytics](#4-web-analytics)
-5. [Conclusion](#5-conclusion)
+5. [Final Integration](#5-final-integration)
+   - 5.1 [Data maturity from Part 1](#51-data-maturity-from-part-1)
+   - 5.2 [Retrieval depth from Parts 2 and 3](#52-retrieval-depth-from-parts-2-and-3)
+   - 5.3 [User experience, guidance, and observability](#53-user-experience-guidance-and-observability)
+   - 5.4 [A unified platform](#54-a-unified-platform)
 
 ---
 
@@ -112,37 +116,35 @@ Changing only the card layout already lifted perceived quality because the summa
 
 ### 4.1 Data collection
 
-`AnalyticsData` instruments every step of the funnel and feeds the dashboard with concrete web-metric primitives:
+We extended `AnalyticsData` into an in-memory star schema (a data model with fact tables surrounded by dimension tables) that captures every relevant interaction described in the statement:
 
-1. **Request telemetry (`record_request`)**: counts every hit to `/`, `/search`, `/doc_details`, `/stats`, `/dashboard`, and `/track_dwell`, storing method, status, path, response latency (ms) and payload size so we can compute the uptime cards (“Total Requests”, “Avg Request Latency”) and the “Status Codes” list.
-2. **Session & mission tracking (`start_session`, `start_mission`)**: differentiates physical sessions (timeout based) from intent-level missions. Sessions carry browser label, device type, OS, visitor IP, and the geo override coming from the consent modal. Those values power the “Browser Share”, “Device Types”, “Operating Systems”, and “Geo Distribution” panels. Mission metadata (query count, duration) is rendered inside the “Session & Mission Insights” card. *Assumption:* we auto-start exactly one mission whenever a new analytics session begins and reuse it for every search made during that sit-down; this keeps intent tracking deterministic and avoids building a semantic classifier to infer mission boundaries.
-3. **Queries (`save_query_terms`, `update_query_results`)**: every `/search` POST stores the normalized text, token count, relative order within the session, and later the number of retrieved documents. These fields drive the “Total Queries”, “Zero-result Rate”, “Top Queries”, and “Recent Searches” widgets.
-4. **Clicks and dwell (`register_click`, `update_click_dwell`)**: the results template embeds `search_id` and rank position into the `/doc_details` links, while the details page sends dwell time through `/track_dwell`. The click fact stores PID, title, category, price bucket, rank and dwell statistics, which back the “Click Behaviour” card (ranking breakdown + dwell percentiles) and the “Most Clicked Documents” table.
-5. **Visitor context counters (`_update_context_counters`)**: every request increments hourly buckets, OS/device counters, and country/city tuples so aggregated distributions can be shown live without post-processing.
+1. **HTTP requests:** `record_request` captures method, path, status code, latency (time spent serving a request), bytes sent, and the associated session identifier so we can reason about reliability issues and detect “hot” endpoints.
+2. **Sessions and missions:** `start_session` and `start_mission` let us differentiate physical sessions (a sit-down tracked with a timeout-based heuristic) from logical missions (a sequence of related queries). For simplicity we automatically start one mission whenever a new analytics session begins and reuse it for all searches during that sit-down, which keeps the mapping deterministic without asking the user to label their intent. Sessions track visitor attributes such as user agent, operating system, device type, IP address, and optional country/city. Geo data is collected with a client-side consent prompt that calls `ipapi.co`; the chosen country/city is cached in the session so all subsequent requests inherit it.
+3. **Queries:** Every POST to `/search` calls `save_query_terms`, which normalizes the text, records the number of terms, order-of-arrival within the session/mission, and links the query to the visitor context mentioned above. Once ranking completes, `update_query_results` stores the result count so we can compute the zero-result rate.
+4. **Results and clicks:** `register_click` accepts either Pydantic documents or plain dictionaries and records the clicked product identifier, title, brand, category, price bucket, rank position (the ordering that the engine displayed), and a dwell time placeholder. A JavaScript beacon on the document details page sends the actual dwell time when the user navigates away, and `update_click_dwell` patches the click record accordingly. Each click also keeps a pointer to the originating query so attribution is preserved.
+5. **Visitor context:** `_update_context_counters` classifies device type, OS, and geography (including “Unknown” if the user declines sharing) and buckets activity by hour of day. `_find_active_session` merges consecutive requests from the same visitor into a single session until a configurable timeout elapses.
 
-All collectors append to lightweight data classes (`RequestRecord`, `SessionRecord`, `MissionRecord`, `QueryRecord`, `ClickRecord`) so the instrumentation stays reproducible without an external database.
+All collectors append to Python data classes (`SessionRecord`, `MissionRecord`, `RequestRecord`, `QueryRecord`, `ClickRecord`), which makes the instrumentation deterministic and reproducible without external databases.
 
 ### 4.2 Data storage model
 
-The in-memory warehouse mirrors a star schema with three fact collections:
+The star schema consists of three main fact tables:
 
-- **`fact_requests`**: latency histograms, top paths, and HTTP status counters that feed the KPI band and the “Request Summary” card.
-- **`sessions` / `missions`**: physical sessions plus intent missions, each with timestamps, device context, query order, and derived durations (used for “Avg Session Duration”, the active-session badge, and the textual mission list).
-- **`fact_click_events`**: every click enriched with price bucket, brand, dwell, and ranking slot, powering “Top Brands by Clicks”, “Price Sensitivity”, “Click Behaviour”, and the “Most Clicked Documents” table.
+- **Request fact** (`fact_requests`): every HTTP interaction with latency statistics and status code counters for uptime reporting.
+- **Session fact** (`sessions` + `missions`): holds physical sessions, logical missions, and sequencing metadata (order of queries, mission goals, session start/end timestamps, and inferred dwell times).
+- **Click fact** (`fact_click_events`): attribution-ready click rows that join back to queries and sessions for multi-dimensional breakdowns.
 
-Dimension-style counters (browser, device, OS, geo, price buckets) are stored as `Counter` objects alongside the facts so the dashboard can compute percentages in constant time when rendering.
+Dimension-like counters (browser share, device share, OS share, geographic pairs, price buckets) are kept in `Counter` collections so dashboards can aggregate them quickly. This mirrors a traditional analytics warehouse while remaining easy to reset during grading.
 
 ### 4.3 Dashboard and indicators
 
-The `/dashboard` route assembles `analytics_summary` (cards + lists) and `charts` (Altair specs) before rendering `templates/dashboard.html`. The UI exposes each metric explicitly:
+The `/dashboard` endpoint pulls every aggregation into a single `analytics_summary` dictionary and a `charts` bundle so the template can focus on layout. The page is split into three layers:
 
-- **KPI rows**: “Total Requests”, “Total Sessions”, “Total Queries”, and “Zero-result Rate” summarise volume, followed by a latency/duration band (“Avg Session Duration”, “Avg Request Latency”, “Avg Dwell Time”, “Active Sessions”).
-- **Request & session cards**: “Request Summary” lists top paths and HTTP status counts; “Session & Mission Insights” shows total sessions, missions tracked, average session duration, and the list of active missions with their query counts.
-- **Engagement lists**: “Top Queries”, “Recent Searches”, “Browser Share”, “Device Types”, “Operating Systems”, “Geo Distribution”, “Top Brands by Clicks”, and “Price Sensitivity” each present the exact counters pulled from analytics.
-- **Click quality**: “Click Behaviour” surfaces total clicks, average dwell time, per-rank counts, and dwell percentiles (min/median/max/p90). A responsive table titled “Most Clicked Documents” pairs title + truncated description with the click counter to spotlight products that attract most attention.
-- **Altair/Vega-Lite charts**: the template embeds six specs (`views`, `sessions_by_hour`, `status_codes`, `dwell_hist`, `price_sensitivity`, `top_brands`) so evaluators can see time-of-day traffic, status mix, dwell distribution, price-bucket shares, and brand popularity as live charts rendered via `vegaEmbed`.
+1. **KPI cards and tables** – Total requests, sessions, queries, zero-result rate, average latency/session/dwell, active missions, request status breakdown, top paths, device share, OS share, geo distribution, top queries, recent queries, price buckets, click behaviour (including ranking positions and dwell percentiles), and a “most clicked documents” table (title + description fallback). We also annotate the mission section with a short reminder that each “search journey” corresponds to the auto-started mission per session.
+2. **Charts powered by Altair/Vega-Lite** – We render reusable specifications for document views vs clicks, sessions by hour, HTTP status distribution, dwell-time histogram, price sensitivity pie (with percentage labels), and top brands. Charts are embedded via `vegaEmbed` with custom sizing so they stack vertically and fit the page width.
+3. **Request/session instrumentation** – Every route (`/`, `/search`, `/doc_details`, `/stats`, `/dashboard`, `/track_dwell`) now bootstraps the analytics session, logs the HTTP request, and forwards the visitor context to `AnalyticsData`. The search results template includes the rank position inside the `/doc_details` link, ensuring clicks are attributed to their slot. The document-details page hosts the dwell-time beacon and exposes the `search_id` so clicks link back to queries.
 
-Because every widget and chart is fed from the same `AnalyticsData` snapshot, replaying traffic in grading instantly updates the dashboard without any extra tooling.
+Because all metrics and charts read from the same in-memory warehouse, instructors can replay traffic in their environment and instantly see the dashboard update without provisioning external services.
 
 ## 5. Final Integration
 
@@ -158,7 +160,7 @@ Part 2 delivered the TF‑IDF baseline, evaluation metrics, and the discipline t
 
 ### 5.3 User experience, guidance, and observability
 
-With the backend capabilities unified, Part 4 focused on packaging them into an experience that feels intentional. The search page lets visitors choose ranking strategies, gives context on optional geo collection, and guarantees accessible interactions through validation and responsive design. The RAG summary block translates raw ranking output into recommendations that cite price, rating, and stock considerations, while the document-details view completes the journey with image modals, back-navigation that preserves the original query, and dwell-time beacons for analytics. Finally, the dashboard aggregates every trace—requests, missions, queries, clicks, dwell times—so instructors can replay traffic and evaluate both retrieval quality and UX behavior without additional tooling.
+With the backend capabilities unified, Part 4 focused on packaging them into an experience that feels intentional. The search page lets visitors choose ranking strategies, gives context on optional geo collection, and guarantees accessible interactions through validation and responsive design. The RAG summary block translates raw ranking output into recommendations that cite price, rating, and stock considerations, while the document-details view completes the journey with image modals, back-navigation that preserves the original query, and dwell-time beacons for analytics. Finally, the dashboard aggregates every trace: requests, missions, queries, clicks, dwell times, so instructors can replay traffic and evaluate both retrieval quality and UX behavior without additional tooling.
 
 ### 5.4 A unified platform
 
@@ -166,5 +168,5 @@ Seen together, these contributions convert a set of incremental deliverables int
 
 ---
 
-***AI Use*: For Part 4 we relied on AI tools mainly to draft small text passages and to propose wording tweaks for the UI. All backend code, analytics instrumentation, dashboard logic, and the final write-up were designed and validated by the team. We reviewed and adjusted every AI suggestion before including it.**
+***AI Use*: AI tools were used to help design the general structure of some functions. However, the code logic, analysis approach, test queries, and relevance judgments were fully developed and verified by the team. All AI-generated parts were carefully reviewed, corrected, and adjusted to meet the project requirements. The insights, interpretations, and conclusions presented in this report are entirely the team’s own work.**
 
