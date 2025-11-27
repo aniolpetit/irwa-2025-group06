@@ -190,20 +190,23 @@ def search_form_post():
     found_count = len(results)
     analytics_data.update_query_results(search_id, found_count)
 
-    # generate RAG response based on user query and retrieved results
-    rag_result = rag_generator.generate_response(search_query, results)
-    if not isinstance(rag_result, dict):
-        rag_result = {"text": rag_result, "provider": None, "model": None}
-    rag_text = rag_result.get("text")
-    rag_summary = parse_rag_summary(rag_text)
-    print(
-        "RAG response metadata:",
-        {
-            "provider": rag_result.get("provider"),
-            "model": rag_result.get("model"),
-        }
-    )
-    print("RAG response:", rag_text)
+    rag_result = None
+    rag_summary = None
+    if found_count > 0:
+        # generate RAG response based on user query and retrieved results
+        rag_result = rag_generator.generate_response(search_query, results)
+        if not isinstance(rag_result, dict):
+            rag_result = {"text": rag_result, "provider": None, "model": None}
+        rag_text = rag_result.get("text")
+        rag_summary = parse_rag_summary(rag_text)
+        print(
+            "RAG response metadata:",
+            {
+                "provider": rag_result.get("provider"),
+                "model": rag_result.get("model"),
+            }
+        )
+        print("RAG response:", rag_text)
 
     session['last_found_count'] = found_count
 
