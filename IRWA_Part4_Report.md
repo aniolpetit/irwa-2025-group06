@@ -77,6 +77,7 @@ The Retrieval-Augmented Generation (RAG) layer lives in `myapp/generation/rag.py
 We first wired the app to Groq's `llama-3.1-8b-instant` model because Groq's Python SDK is lightweight and matches the OpenAI chat completion schema, so the only code we needed was the `Groq(api_key=...)` client factory plus a fallback message when credentials are missing. Once the key was stored in `.env`, the RAG block in the results page began to render multi-sentence summaries such as the one below.
 
 ![Groq output rendered with the baseline prompt](rag-baseline.png)
+*Figure 1. Initial Groq summary block generated with the baseline prompt.*
 
 The baseline already highlighted the PID, quoted the 25 % discount, and suggested an alternative. However, the copy was unstructured (single paragraph) and sometimes recommended out-of-stock items without pointing that out, so we captured metrics to guide further refinement.
 
@@ -84,6 +85,8 @@ The baseline already highlighted the PID, quoted the 25 % discount, and sugges
 
 1. **Change response format** - This really does not affect the content of the LLM summary as such, but it really improved readibility and made it much more understandable. You can compare the previous image with the original formatting against our new format in the following image:
 ![Groq output rendered with the baseline prompt and an improved formatting](rag-baseline-groq-skin.png)
+*Figure 2. Same Groq response after applying the new card layout for readability.*
+
 2. **Alternative model (OpenAI)** – We added optional initialization of `OpenAI(api_key=...)` and let `LLM_PROVIDER` express a preference order. This made it trivial to compare Groq and OpenAI outputs on identical retrieval contexts, so we could see how using different models affects the output.
 3. **Prompt refinement** – The original prompt simply asked for “best product” and “alternative”. We rewrote it to emphasise critical comparison, practical benefits, and explicit justification for why the winning item beats the alternative. We also nudged the model to call out stock issues rather than ignoring them.
 
@@ -92,18 +95,22 @@ The baseline already highlighted the PID, quoted the 25 % discount, and sugges
 To measure the effect of each change we recorded the UI after every iteration and analysed the pros and cons of each snapshot.
 
 ![Groq baseline inside the redesigned card](rag-baseline-groq-skin.png)
+*Figure 3. Redesigned Groq card showing price, rating, and availability cues.*
 
 *The Groq baseline card* already exposed the rating (4.1/5) and price ₹711 but still repeated the title twice and only vaguely referenced availability, so shoppers still had to verify stock status manually.
 
 ![OpenAI baseline with the original prompt](rag-baseline-openai-skin.png)
+*Figure 4. OpenAI baseline output using the original prompt structure.*
 
 *The OpenAI baseline* used the same prompt yet produced slightly richer wording (“breathability”, “reasonable discount”). Nevertheless it factored in just rating and price, so cold-start queries where metadata was sparse still produced generic advice.
 
 ![Groq output after the prompt rewrite](rag-refined-prompt-groq.png)
+*Figure 5. Groq response after the prompt rewrite highlighting trade-offs.*
 
 *Groq + refined prompt* yielded the most concise yet actionable explanation. The text now justifies why waiting for the out-of-stock product might be worth it (rating, discount, original price) and contrasts it with an in-stock option, which solved the main UX complaint from our first test.
 
 ![OpenAI output after the prompt rewrite](rag-refined-prompt-openai.png)
+*Figure 6. OpenAI response after the prompt rewrite with richer explanations.*
 
 *OpenAI + refined prompt* produced the longest narrative. It now references fabric quality, colour versatility, and explicitly warns that the alternative is out of stock. The downside is that it sometimes over-explains (several long sentences) which can push other content below the fold on smaller laptops. Overall, both providers now justify their picks with concrete attributes, mention stock limitations, and use consistent layout metadata (provider badge, PID, alternative) so the AI box reads like a trustworthy assistant rather than a generic paragraph.
 
@@ -116,6 +123,47 @@ Changing only the card layout already lifted perceived quality because the summa
 
 ### 4.1 Data collection
 
+`AnalyticsData` instruments every step of the funnel and feeds the dashboard with concrete web-metric primitives:
+
+1. **Request telemetry (`record_request`)**: counts every hit to `/`, `/search`, `/doc_details`, `/stats`, `/dashboard`, and `/track_dwell`, storing method, status, path, response latency (ms) and payload size so we can compute the uptime cards (“Total Requests”, “Avg Request Latency”) and the “Status Codes” list.
+2. **Session & mission tracking (`start_session`, `start_mission`)**: differentiates physical sessions (timeout based) from intent-level missions. Sessions carry browser label, device type, OS, visitor IP, and the geo override coming from the consent modal. Those values power the “Browser Share”, “Device Types”, “Operating Systems”, and “Geo Distribution” panels. Mission metadata (query count, duration) is rendered inside the “Session & Mission Insights” card. *Assumption:* we auto-start exactly one mission whenever a new analytics session begins and reuse it for every search made during that sit-down; this keeps intent tracking deterministic and avoids building a semantic classifier to infer mission boundaries.
+3. **Queries (`save_query_terms`, `update_query_results`)**: every `/search` POST stores the normalized text, token count, relative order within the session, and later the number of retrieved documents. These fields drive the “Total Queries”, “Zero-result Rate”, “Top Queries”, and “Recent Searches” widgets.
+4. **Clicks and dwell (`register_click`, `update_click_dwell`)**: the results template embeds `search_id` and rank position into the `/doc_details` links, while the details page sends dwell time through `/track_dwell`. The click fact stores PID, title, category, price bucket, rank and dwell statistics, which back the “Click Behaviour” card (ranking breakdown + dwell percentiles) and the “Most Clicked Documents” table.
+5. **Visitor context counters (`_update_context_counters`)**: every request increments hourly buckets, OS/device counters, and country/city tuples so aggregated distributions can be shown live without post-processing.
+
+All collectors append to lightweight data classes (`RequestRecord`, `SessionRecord`, `MissionRecord`, `QueryRecord`, `ClickRecord`) so the instrumentation stays reproducible without an external database.
+
+### 4.2 Data storage model
+
+The in-memory warehouse mirrors a star schema with three fact collections:
+
+- **`fact_requests`**: latency histograms, top paths, and HTTP status counters that feed the KPI band and the “Request Summary” card.
+- **`sessions` / `missions`**: physical sessions plus intent missions, each with timestamps, device context, query order, and derived durations (used for “Avg Session Duration”, the active-session badge, and the textual mission list).
+- **`fact_click_events`**: every click enriched with price bucket, brand, dwell, and ranking slot, powering “Top Brands by Clicks”, “Price Sensitivity”, “Click Behaviour”, and the “Most Clicked Documents” table.
+
+Dimension-style counters (browser, device, OS, geo, price buckets) are stored as `Counter` objects alongside the facts so the dashboard can compute percentages in constant time when rendering.
+
+### 4.3 Dashboard and indicators
+
+The `/dashboard` route assembles `analytics_summary` (cards + lists) and `charts` (Altair specs) before rendering `templates/dashboard.html`. The UI exposes each metric explicitly:
+
+- **KPI rows**: “Total Requests”, “Total Sessions”, “Total Queries”, and “Zero-result Rate” summarise volume, followed by a latency/duration band (“Avg Session Duration”, “Avg Request Latency”, “Avg Dwell Time”, “Active Sessions”).
+- **Request & session cards**: “Request Summary” lists top paths and HTTP status counts; “Session & Mission Insights” shows total sessions, missions tracked, average session duration, and the list of active missions with their query counts.
+- **Engagement lists**: “Top Queries”, “Recent Searches”, “Browser Share”, “Device Types”, “Operating Systems”, “Geo Distribution”, “Top Brands by Clicks”, and “Price Sensitivity” each present the exact counters pulled from analytics.
+- **Click quality**: “Click Behaviour” surfaces total clicks, average dwell time, per-rank counts, and dwell percentiles (min/median/max/p90). A responsive table titled “Most Clicked Documents” pairs title + truncated description with the click counter to spotlight products that attract most attention.
+- **Altair/Vega-Lite charts**: the template embeds six specs (`views`, `sessions_by_hour`, `status_codes`, `dwell_hist`, `price_sensitivity`, `top_brands`) so evaluators can see time-of-day traffic, status mix, dwell distribution, price-bucket shares, and brand popularity as live charts rendered via `vegaEmbed`.
+
+Because every widget and chart is fed from the same `AnalyticsData` snapshot, replaying traffic in grading instantly updates the dashboard without any extra tooling.
+
+![Stats endpoint showing most clicked products](data/stats.png)
+*Figure 7. `/stats` highlights total click counts per product with a simple ranking table.*
+
+![Dashboard KPI cards and request panels](data/analytics.png)
+*Figure 8. First fold of `/dashboard` with KPI ribbons plus request/session widgets.*
+
+---
+
+***AI Use*: For Part 4 we relied on AI tools mainly to draft small text passages and to propose wording tweaks for the UI. All backend code, analytics instrumentation, dashboard logic, and the final write-up were designed and validated by the team. We reviewed and adjusted every AI suggestion before including it.**
 We extended `AnalyticsData` into an in-memory star schema (a data model with fact tables surrounded by dimension tables) that captures every relevant interaction described in the statement:
 
 1. **HTTP requests:** `record_request` captures method, path, status code, latency (time spent serving a request), bytes sent, and the associated session identifier so we can reason about reliability issues and detect “hot” endpoints.
