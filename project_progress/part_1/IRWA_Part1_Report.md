@@ -1,7 +1,10 @@
 # IRWA Final Project - Part 1 Report
 ## Text Processing and Exploratory Data Analysis
+**Github URL**: https://github.com/aniolpetit/irwa-2025-group06
 
-**Date:** October 16, 2025
+**Github TAG**: IRWA-2025-part-1
+
+**Date:** October 24, 2025
 
 ---
 
@@ -21,20 +24,17 @@
    - 3.5 [Optional Advanced Features](#35-optional-advanced-features)
 4. [Key Findings and Insights](#4-key-findings-and-insights)
 5. [Conclusion](#5-conclusion)
-6. [Appendix: Code Structure](#appendix-code-structure)
+6. [Appendix: Figures](#appendix-figures)
 
 ---
 
 ## 1. Introduction
 
-This report presents the work completed for **Part 1** of the Final Project of the Information Retrieval and Web Analytics course. The objective of this part is to prepare and analyze a fashion products dataset through comprehensive text processing and exploratory data analysis (EDA).
-
-The work is divided into two main components:
+This report presents the work completed for **Part 1** of the Final Project of the Information Retrieval and Web Analytics course. 
+The dataset consists of fashion product listings with fields including title, description, category, actual and selling price, average rating, brand, and other metadata. The goal is to prepare this data for subsequent information retrieval tasks (indexing, searching, ranking) in later parts of the project. The work is divided into two main components:
 
 - **Data Preparation:** Loading, cleaning, normalizing, tokenizing, and preprocessing the raw dataset.
 - **Exploratory Data Analysis:** Statistical analysis, visualization, and insights extraction.
-
-The dataset consists of fashion product listings with fields including title, description, category, actual and selling price, average rating, brand, and other metadata. The goal is to prepare this data for subsequent information retrieval tasks (indexing, searching, ranking) in later parts of the project.
 
 ---
 
@@ -42,13 +42,14 @@ The dataset consists of fashion product listings with fields including title, de
 
 ### 2.1 Dataset Overview
 
-The raw dataset is provided in JSON format containing fashion product records. The `inspect_data()` function of [IRWA_Part1_Preparation.ipynb](IRWA_Part1_Preparation.ipynb) displays the basic characteristics of the dataset for initial inspection, although a more thorough examination is performed in [IRWA_Part1_EDA.ipynb](IRWA_Part1_EDA.ipynb). Each record includes:
+The raw dataset is provided in JSON format containing fashion product records. The `inspect_data()` function of [IRWA_Part1_Preparation.ipynb](IRWA_Part1_Preparation.ipynb) displays the basic characteristics of the dataset for initial inspection, although a more thorough examination is performed in [IRWA_Part1_EDA.ipynb](IRWA_Part1_EDA.ipynb). Each record includes 17 features:
 
 - _id (unique identifier)
 - pid (product identifier)
 - title
 - description
-- category, sub_category
+- category
+- sub_category
 - brand
 - seller
 - product_details
@@ -60,7 +61,6 @@ The raw dataset is provided in JSON format containing fashion product records. T
 - out_of_stock (boolean)
 - images (URL list)
 - url (product URL)
-
 
 #### Data Loading Process
 
@@ -76,11 +76,11 @@ Text cleaning is crucial for effective information retrieval. We implemented a `
 - Convert encoded characters like `&amp;`, `&lt;`, `&quot;` back to their normal symbols (`&`, `<`, `"`)
 - Remove HTML tags using BeautifulSoup
 
-#### 2. Case Normalization
-- Convert all text to lowercase for consistency
-
-#### 3. Unicode Normalization
+#### 2. Unicode Normalization
 - Standardize Unicode characters so visually similar ones become the same (e.g., convert accented letters like “é” to “e”, turn curly quotes into straight quotes)
+
+#### 3. Case Normalization
+- Convert all text to lowercase for consistency
 
 #### 4. Content Filtering
 - Remove URLs (`http://`, `www.`)
@@ -105,10 +105,6 @@ After cleaning, we apply a multi-step text processing pipeline:
 
 #### 3. Stemming (`stem_tokens()`)
 - Apply Snowball Stemmer to reduce words to their root form
-- Examples:
-  - "running" → "run"
-  - "computers" → "comput"
-  - "buying" → "buy"
 - This reduces vocabulary size and improves recall in search
 
 #### 4. Integrated Pipeline (`preprocess_text()`)
@@ -119,127 +115,149 @@ After cleaning, we apply a multi-step text processing pipeline:
 Below is an example illustrating our tokenization and text processing pipeline:
 
 `PID`: TSHFPVNSNGEGH7EM
+
 - **Raw**: Typography Men Round Neck Multicolor T-Shirt.
+
 - **Cleaned**: typography men round neck multicolor t shirt
+
 - **Tokens**: `['typographi', 'men', 'round', 'neck', 'multicolor', 'shirt']` 
 
 `PID`: TKPFZKWAH2WAGYZ4
+
 - **Raw**: Solid Women Blue Track Pants.
+
 - **Cleaned**: solid women blue track pants
+
 - **Tokens**: `['solid', 'women', 'blue', 'track', 'pant'] `
 
 ---
 
 ### 2.4 Field Handling Strategy and Justification
 
-#### 2.4.1 Handling category, sub_category, brand, product_details, and seller
+### 2.4.1 Handling category, sub_category, brand, product_details, and seller
 
 We adopt a hybrid strategy that reflects how different product attributes are typically used in search.
 
-Specifically, we generate separate token lists for `title`, `brand`, `category`, `sub_category`, and `product_details` so they can be weighted differently at query time.
+Specifically, we generate separate token lists for `title`, `brand`, `seller`, `category`, `sub_category`, `description` and `product_details` so they can be weighted differently at query time. 
 In addition, we keep a combined `full_text` field that concatenates `title`, `description`, `category`, `sub_category`, `brand`, `seller`, and `product_details`, which serves as a fallback for general or unstructured queries.
-The `seller` text is preserved and remains available for exact filtering if needed, but we do not create a dedicated token list for it.
 
 This approach recognizes that each field carries different information about a product. Categories and subcategories describe the type of item, brands often capture user intent (for instance, when searching for “Nike shoes”), and product details provide technical or descriptive attributed such as color, material, or fit. By keeping these fields separate, we can assign appropriate weights depending on the type of query, while the combined `full_text` ensures coverage for broader or mixed queries. This design improves the accuracy of retrieval when users focus on a specific aspect (such as brand, category, or detailed specifications) while still performing well for more general searches.
 
-We also considered alternative designs. Merging all text into a single field would simplify implementation and reduce indexing costs, but it would eliminate useful structure and make it difficult to prioritize relevant attributes, likely reducing precision. Conversely, relying only on separate fields would provide more control and higher precision but could fail to retrieve results when query terms appear across different fields. Our hybrid solution strikes a balance between these extremes: it introduces some additional complexity and storage requirements, but consistently achieves better retrieval performance across different query types.
+We also considered alternative designs. Merging all text into a single field would simplify implementation and reduce indexing costs, but it would eliminate useful structure and make it difficult to prioritize relevant attributes, likely reducing precision. On the other hand, relying only on separate fields would provide more control and higher precision but could fail to retrieve results when query terms appear across different fields. Our hybrid solution strikes a balance between these extremes: it introduces additional complexity and storage requirements, but achieves better retrieval performance across different query types.
 
-#### 2.4.2 Numeric Fields Strategy
+### 2.4.2 Numeric Fields Strategy
 
-For `out_of_stock`, `selling_price`, `discount`, `actual_price`, and `average_rating`, we treat them as true numeric/boolean values rather than text. To ensure consistency and enable proper filtering, sorting, and ranking operations, we apply a dedicated preprocessing function `normalize_numeric_fields` that standardizes these attributes across all records.
+For `out_of_stock`, `selling_price`, `discount`, `actual_price`, and `average_rating`, we treat them as true numeric/boolean values rather than text. To ensure consistency and enable proper filtering, sorting, and ranking operations, we apply a dedicated preprocessing function `normalize_numeric_fields()` that standardizes these attributes across all records.
 
-For price-related fields (`selling_price`, `actual_price`)the function removes thousands separators, currency symbols, and any non-numeric characters before converting the result to either an integer or float, depending on the presence of a decimal point. The `discount` field is normalized by extracting numeric characters from strings such as “69% off” and converting them into integer percentages. The `average_rating` field is parsed as a floating-point value, accommodating both dot and comma decimal separators. Finally, the `out_of_stock` attribute is explicitly cast to a boolean type to ensure consistent logical handling.
+For price-related fields (`selling_price`, `actual_price`) the function removes thousands separators, currency symbols, and any non-numeric characters before converting the result to either an integer or float, depending on the presence of a decimal point. The `discount` field is normalized by extracting numeric characters from strings such as “69% off” and converting them into integer percentages. The `average_rating` field is parsed as a floating-point value, accommodating both dot and comma decimal separators. Finally, the `out_of_stock` attribute is explicitly cast to a boolean type to ensure consistent logical handling.
 
 This normalization process enables accurate numeric comparisons and operations such as range queries (e.g., “price under 50”, “rating ≥ 4.0”), sorting (e.g., by lowest price or highest rating), and filtering (e.g., only available products). Indexing these fields as text is avoided, since string-based matching on numeric data is unreliable and inefficient. The original raw values are preserved for display purposes, but all retrieval and ranking computations rely on the normalized numeric representations.
 
 
-#### 2.4.3 Validation Context Integration
+### 2.4.3 Validation Context Integration
 
-The `validation_labels.csv` provides crucial insights for our preprocessing strategy:
+The `validation_labels.csv` file provides 40 labeled relevance judgments across two queries, serving as ground truth for validating our preprocessing philosophy. By analyzing the patterns in relevant versus non-relevant products, we identified fundamental insights that shaped our overall approach to field handling and justified our hybrid preprocessing strategy.
 
-**Query Analysis:**
-- `query_1`: "women full sleeve sweatshirt cotton"
-- `query_2`: "men slim jeans blue"
+**Validation Dataset Structure:**
 
-**Preprocessing Alignment:**
-1. **Category Matching**: "women"/"men" → `category_tokens` for precise gender targeting
-2. **Product Details**: "full sleeve", "slim" → `details_tokens` for style specifications  
-3. **Material/Color**: "cotton", "blue" → `details_tokens` for material and color attributes
-4. **Product Type**: "sweatshirt", "jeans" → `category_tokens` for product classification
+- **Total judgments**: 40 labeled product-query pairs (binary relevance: 1=relevant, 0=non-relevant)
 
-Our separate field indexing ensures that these query components can be matched with appropriate field weights during retrieval, improving precision and recall.
+- **Query 1**: "women full sleeve sweatshirt cotton" → 14 relevant, 6 non-relevant (70% precision)
 
-#### 2.4.4 Record Processing Pipeline
+- **Query 2**: "men slim jeans blue" → 10 relevant, 10 non-relevant (50% precision)
 
-The complete record processing follows this sequence:
+**Two Fundamental Patterns Driving Our Hybrid Approach**
 
-```python
-def preprocess_record(record: Dict[str, Any]) -> Dict[str, Any]:
-    # 1. Normalize numeric fields (preserve for range queries)
-    rec = normalize_numeric_fields(record)
-    
-    # 2. Clean all text fields
-    title = clean_text(rec.get('title', ''))
-    description = clean_text(rec.get('description', ''))
-    # ... other fields ...
-    
-    # 3. Generate field-specific tokens (for flexible weighting)
-    title_tokens = preprocess_text(title)
-    brand_tokens = preprocess_text(brand)
-    category_tokens = preprocess_text(category)
-    # ... other field tokens ...
-    
-    # 4. Generate combined tokens (for full-text fallback)
-    full_text = ' '.join([title, description, category, subcategory, brand, seller, details])
-    tokens = preprocess_text(full_text)
-    
-    # 5. Return enhanced record with both numeric and tokenized fields
-    return rec
-```
+The analysis of the validation labels revealed two critical and contrasting patterns that standard single-approach preprocessing strategies would fail to address effectively:
+
+- **Precision demands structural distinction**: The first query shows clear categorical boundaries: all non-relevant products are "T-Shirts" while all relevant products are "Sweatshirts" despite both matching other query attributes like "women" and various descriptive terms. Users searching for sweatshirts do not want T-shirts, even when other attributes align. This demonstrates that certain product attributes require precise structural matching, not just keyword overlap.
+
+- **Relevance is multi-dimensional, not binary**: The second query reveals more nuanced behavior: despite specifying "men," several women's jeans products received positive relevance labels. This indicates that strict categorical filtering (e.g., hard gender constraints) would eliminate potentially valid results. Instead, relevance emerges from balancing multiple signals: product type, style attributes (slim, tapered), color, and demographic targeting. Strong matches on some dimensions can compensate for mismatches on others.
+
+These contradictory requirements (the need for both precision and flexibility) cannot be satisfied by a single extreme approach.
+
+**Rejecting Single-Strategy Approaches**
+
+The validation patterns led us to reject two common but inadequate preprocessing strategies:
+
+- **Pure Full-Text Merging** would combine all product attributes into a single token stream, maximizing simplicity and potentially improving recall for broad queries. However, this approach sacrifices the structural precision needed to distinguish between semantically similar but functionally distinct product types (sweatshirts vs. T-shirts). The Query 1 validation results demonstrate that this loss of precision would produce unacceptable false positives.
+
+- **Strict Field-Only Retrieval** would maintain only separate, independent fields with rigid matching constraints or hard filters on attributes like category or gender. While this provides high precision, it fails to capture the flexible, multi-signal nature of relevance shown in Query 2, where cross-category matches can still be valid and where relevance depends on holistic product fit rather than strict attribute compliance.
+
+**Our Hybrid Solution: Precision with Flexibility**
+
+Our preprocessing strategy combines both approaches to capture their respective strengths while avoiding their weaknesses. We maintain **separate tokenized fields** for structured product attributes (category, subcategory, brand, product details, description, title, seller) alongside a **combined full-text field** that merges all textual content. This dual representation enables the retrieval system to apply field-specific weighting for precision-critical attributes while retaining broad coverage for exploratory or multi-faceted queries.
+
+Crucially, rather than implementing hard filters or binary matching rules, our approach treats each field as contributing weighted signals that can be balanced during ranking. This allows the system to simultaneously satisfy Query 1's precision requirements (via separate structural fields) and Query 2's flexible relevance criteria (via multi-signal weighted ranking). The validation data directly confirms this design: Query 1 benefits from precise category/subcategory distinction, while Query 2 requires weighted combinations of product type, style, color, and demographic signals.
+
+**Validation-Driven Design Summary**
+
+The contrasting patterns in the two validation queries directly validate our hybrid preprocessing philosophy:
+
+- **Query 1** (70% relevant): High agreement on relevance criteria with clear structural boundaries. This scenario demands precise field-specific matching to distinguish product types.
+
+- **Query 2** (50% relevant): Greater variability in relevance judgments with some cross-category matches deemed valid. This scenario requires flexible, multi-signal ranking rather than strict filtering.
+
+By designing our preprocessing to support both high-precision structural matching and flexible multi-dimensional ranking, we ensure the system can handle diverse query types and nuanced relevance criteria. This validation-driven approach represents a deliberate architectural choice informed by empirical evidence rather than theoretical assumptions about how users search for fashion products.
+
+### 2.4.4 Record Processing Pipeline
+
+The complete record processing follows the sequence seen in the function `preprocess_record()`:
 
 **Output Structure:**
+
 - **Original fields**: Preserved for display and metadata
+
 - **Numeric fields**: Cleaned and typed for queries
+
 - **Field-specific tokens**: For weighted search
+
 - **Combined tokens**: For full-text search
+
 - **Cleaned text**: For display and analysis
 
 This approach provides maximum flexibility for the subsequent indexing and search phases while maintaining data integrity and supporting various query types.
 
-#### 2.4.5 Preprocessing Results and Statistics
+### 2.4.5 Preprocessing Results and Statistics
 
 The preprocessing pipeline was successfully applied to the complete dataset with the following results:
 
 **Dataset Statistics:**
+
 - **Total Records**: 28,080 fashion product records
+
 - **Original Fields**: 17 columns (including metadata, URLs, and timestamps)
-- **Enhanced Fields**: 25 columns (added tokenized versions and cleaned text)
-- **Average Tokens per Document**: 68.94 tokens (after full preprocessing)
-- **Total Unique Vocabulary**: 8,668 unique tokens across the entire corpus
 
-**Field Processing Results:**
+- **Enhanced Fields**: 26 columns (added tokenized versions and cleaned text)
 
-| Field Type | Fields Processed | Processing Method | Output |
-|------------|------------------|-------------------|---------|
-| **Text Fields** | title, description, category, sub_category, brand, seller, product_details | Clean → Tokenize → Remove Stopwords → Stem | Cleaned text + tokenized lists |
-| **Numeric Fields** | selling_price, actual_price, discount, average_rating | Normalize → Convert to proper types | Numeric values for range queries |
-| **Boolean Fields** | out_of_stock | Convert to boolean | Boolean values for filtering |
-| **Metadata** | pid, url, images, crawled_at | Preserved as-is | Original values maintained |
+- **Average Tokens per Document**: 70.34 tokens (after full preprocessing)
+
+- **Total Unique Vocabulary**: 8,670 unique tokens across the entire corpus
 
 **Tokenization Impact:**
-- **Vocabulary Reduction**: From raw text to 8,668 unique tokens (significant reduction through stemming and stopword removal)
-- **Document Length**: Average 68.94 tokens per document provides good balance between detail and conciseness
+
+- **Vocabulary Reduction**: From raw text to 8,670 unique tokens (significant reduction through stemming and stopword removal)
+
+- **Document Length**: Average 70.34 tokens per document provides good balance between detail and conciseness
+
 - **Field Distribution**: Separate tokenization allows for field-specific weighting in future search phases
 
 **Quality Assurance:**
+
 - All 28,080 records successfully processed without errors
+
 - PID field preserved for evaluation purposes (as required)
+
 - Original field values maintained alongside processed versions
-- Numeric fields properly normalized for range queries and sorting
+
+- Numeric fields converted to numeric data types and booleans for range queries and sorting
 
 **Storage Efficiency:**
+
 - Hybrid approach provides both field-specific and combined tokenization
+
 - Enables flexible querying strategies in subsequent phases
+
 - Maintains backward compatibility with original data structure
 
 ---
@@ -253,101 +271,120 @@ After preprocessing, we conducted comprehensive exploratory data analysis to und
 **Function: `dataset_summary(df)`**
 
 Provides an overview of the dataset structure:
+
 - Total number of rows (product records)
+
 - Total number of columns (fields)
+
 - Missing value counts per field
+
 - Non-missing value counts
+
 - Unique value counts for categorical fields
 
-**Key Statistics (Typical):**
-- Dataset size: ~28,000 product records
-- Fields: ~15-20 columns including text, numeric, and categorical
-- Completeness: Most text fields (title, category) are well-populated
-- Missing data: Some optional fields (discount, brand) have missing values
+- Handles both hashable columns and list-type columns (like tokenized fields)
+
+The function automatically detects column types and provides appropriate statistics for each data type.
 
 ---
 
 ### 3.2 Text Statistics
 
 **Functions:**
-- `text_stats(df, field)`: Compute token distribution statistics
-- `most_common_tokens(df, field, top_n)`: Identify most frequent tokens
+
+- `text_stats(df, field)`: Compute token distribution statistics for tokenized fields
+
+- `sentence_stats(df, field)`: Analyze sentence-level statistics for text fields
+
+- `most_common_tokens(df, field, top_n)`: Identify most frequent tokens in a field
+
+- `compare_token_stats(df, token_fields)`: Compare token statistics across multiple fields
+
+- `_ensure_tokens_series(df, field)`: Helper function to safely handle tokenized data
 
 **Metrics Analyzed:**
+
 - Average tokens per document
+
 - Median tokens per document
+
 - Vocabulary size (unique tokens across corpus)
+
+- Average words per sentence
+
+- Median words per sentence
+
 - Token frequency distribution
-
-**Typical Results:**
-- Average document length: 15-30 tokens (after preprocessing)
-- Vocabulary size: 5,000-15,000 unique tokens
-- Top tokens: Fashion-related terms (dress, women, cotton, size, color, etc.)
-- Long tail: Many terms appear only once (hapax legomena)
-
-**Insights:**
-These statistics inform indexing decisions (e.g., minimum term frequency thresholds) and help identify domain-specific vocabulary.
 
 ---
 
 ### 3.3 Numeric Analysis
 
 **Functions:**
+
 - `numeric_summary(df, field)`: Statistical summary (min, max, mean, median, std)
-- `plot_numeric_hist(df, field)`: Histogram with KDE overlay
-- `plot_price_vs_rating(df)`: Scatter plot for correlation analysis
+
+- `plot_numeric_hist(df, field)`: Histogram with KDE overlay for smoothness
+
+- `plot_price_vs_rating(df)`: Scatter plot for correlation analysis between the price and the rating
+
+- `compute_numeric_correlation(df, numeric_fields)`: Correlation matrix for numeric fields
+
+- `top_products(df, field, top_n)`: Retrieve top products by a numeric field
 
 **Fields Analyzed:**
-- **Price:** Distribution, range, typical values
-- **Rating:** Customer satisfaction levels
-- **Discount:** Promotion patterns
-- **Number of Reviews:** Product popularity
 
-**Example Insights:**
-- Price distribution is typically right-skewed (most products affordable, some luxury items)
-- Ratings often cluster around 4.0-4.5 stars
-- Discounts range from 0% to 70%, with peaks around common sale percentages (20%, 30%, 50%)
-- Weak correlation between price and rating (expensive ≠ better rated)
+- **Price:** Distribution, range, typical values (selling_price, actual_price)
+
+- **Rating:** Customer satisfaction levels (average_rating)
+
+- **Discount:** Promotion patterns (discount)
 
 ---
 
 ### 3.4 Categorical Analysis
 
 **Functions:**
-- `categorical_summary(df, field)`: Value counts and percentages
-- `plot_categorical_bar(df, field)`: Bar chart of top categories
-- `plot_categorical_pie(df, field)`: Pie chart for distribution
+
+- `categorical_summary(df, field)`: Value counts and percentages with null filtering
+
+- `plot_categorical_bar(df, field)`: Bar chart of top categories with annotations
+
+- `plot_categorical_pie(df, field)`: Pie chart for distribution visualization
 
 **Fields Analyzed:**
-- **Category:** Product type distribution (dresses, shirts, shoes, etc.)
-- **Brand:** Top brands and market share
-- **Seller:** Vendor distribution
-- **Out of Stock:** Availability analysis
 
-**Example Findings:**
-- Categories: Women's clothing dominates, followed by men's and accessories
-- Brands: Mix of well-known brands and private labels
-- Out-of-stock ratio: Typically 5-15% of products
-- Seller concentration: Often dominated by a few large sellers
+- **Category:** Product type distribution (category, sub_category)
+
+- **Brand:** Top brands and market share
+
+- **Seller:** Vendor distribution
+
+- **Out of Stock:** Availability analysis (out_of_stock boolean field)
+
+The categorical functions include robust filtering to handle null, NaN, and empty string values appropriately.
 
 ---
 
-### 3.5 Optional Advanced Features
+### 3.5 Advanced Features
 
-The EDA notebook also includes optional advanced analysis capabilities:
+**Word Cloud Analysis (`generate_wordcloud(tokens_list, title)`):**
 
-#### 1. Word Clouds (`generate_wordcloud()`)
 - Visual representation of term frequencies
+
 - Larger words = more frequent terms
+
 - Useful for quick visual inspection of domain vocabulary
 
-#### 2. Named Entity Recognition (`extract_entities()`)
-- Uses spaCy NLP library to identify entities
-- Extracts: brands, colors, materials, product types
-- Helps understand product attribute distribution
-- Can inform feature engineering for search ranking
+- Handles empty token lists gracefully
 
-These features are guarded by try/except blocks to ensure the notebook works even if optional libraries (wordcloud, spaCy) are not installed.
+**Summary Generation (`render_markdown_summary(...)`):**
+
+- Automated markdown report generation
+
+- Combines statistics from multiple analysis functions
+
+- Provides formatted output for documentation
 
 ---
 
@@ -355,138 +392,201 @@ These features are guarded by try/except blocks to ensure the notebook works eve
 
 Based on our data preparation and exploratory analysis, we identified the following key findings:
 
-### Data Quality
-- The dataset is generally well-structured with consistent field naming
-- Text fields contain some HTML artifacts and formatting issues (addressed by cleaning)
-- Numeric fields require normalization due to inconsistent formatting
-- Missing values are present but manageable (typically in optional fields)
+### 4.1 Dataset Overview
 
-### Text Characteristics
-- Product titles are concise (5-15 words typically)
-- Descriptions vary widely in length and detail
-- High overlap in vocabulary between similar product categories
-- Domain-specific terms are prevalent (fabric types, sizes, colors)
+**Dataset Statistics:**
 
-### Product Catalog Insights
-- Wide price range accommodating budget to luxury segments
-- Rating distribution skewed positive (most products rated 3.5+)
-- Significant seasonal/promotional discounts observed
-- Category imbalance: some categories much more populated than others
+- **Total Records**: 28,080 fashion product records
 
-### Preprocessing Impact
-- Stopword removal reduces token count by ~30-40%
-- Stemming further reduces vocabulary size by ~20-30%
-- Cleaned text shows improved consistency for IR tasks
-- Token distribution follows Zipf's law (expected for natural language)
+- **Total Columns**: 26 fields (including original and processed fields)
 
-### Implications for IR System Design
-- Need robust handling of product attributes (size, color, material)
-- Category-aware search may improve relevance
-- Price and rating filters are essential user features
-- Synonym handling may be beneficial (e.g., "shirt" vs "top")
+- **Data Completeness**: Most core fields are well-populated with minimal missing values. We can highlight `average_rating` as the field with the most missing values, with an 8% missing.
+
+
+### 4.2 Text Characteristics and Tokenization Impact
+
+**Token Distribution Across Fields:**
+
+- **Title tokens**: 6.1 avg tokens/doc, 609 unique vocabulary
+
+- **Description tokens**: 18.3 avg tokens/doc, 4,402 unique vocabulary  
+
+- **Details tokens**: 40.1 avg tokens/doc, 5,584 unique vocabulary
+
+- **Seller tokens**: 1.4 avg tokens/doc, 601 unique vocabulary
+
+- **Category tokens**: 2.0 avg tokens/doc, 7 unique vocabulary
+
+- **Subcategory tokens**: 1.4 avg tokens/doc, 39 unique vocabulary
+
+- **Brand tokens**: 1.1 avg tokens/doc, 355 unique vocabulary
+
+- **Combined tokens**: 70.3 avg tokens/doc, 8,670 unique vocabulary
+
+This distribution shows that most textual richness comes from the product details and descriptions, which contribute the largest vocabularies and token counts, while category, subcategory, seller and brand fields are concise and highly repetitive, making them useful mainly for filtering rather than semantic retrieval. Titles are also concise but quite informative. 
+
+**Sentence-Level Analysis:**
+
+- **Title**: 6.7 avg words/sentence, 7.0 median words/sentence
+
+- **Description**: 50.3 avg words/sentence, 40.0 median words/sentence
+
+Below we show most frequent terms in each token field (greater word size means more frequency). For specific frequency values refer to `IRWA_Part1_EDA.ipynb`. See Figures 1-8 in the Appendix for word cloud visualizations of the most frequent terms across all token fields.
+
+
+**General Word Cloud Insights:** Title and brand clouds show concise, targeted vocabulary focused on product types and brand names, while description and product details clouds display much richer, diverse terminology including materials and style attributes. Category and subcategory clouds demonstrate the structured nature of fashion classification, with clear categorical boundaries. The combined cloud represents the full semantic landscape of the fashion domain, dominated by common fashion descriptors reflecting the fundamental attributes customers use when searching for fashion items.
+
+
+### 4.3 Numeric Field Analysis
+
+**Price Distribution:**
+
+- **Selling Price**: min: 99, max: 7,999, mean: 705.64, median: 545, std: 549.68
+
+- **Actual Price**: min: 150, max: 12,999, mean: 1,455.53, median: 1,199, std: 939.98
+
+See Figures 9-10 in the Appendix for the price distribution histograms.
+
+Both price distributions show a strong right skew, with most products concentrated in the lower price ranges (selling price peaks around 500-1000, actual price around 1000-1500), indicating the dataset predominantly features affordable fashion items with a long tail of premium products extending to luxury price points.
+
+**Rating Analysis:**
+
+- min: 1.0, max: 5.0, mean: 3.63, median: 3.8, std: 0.66
+
+See Figure 11 in the Appendix for the rating distribution histogram.
+
+The rating distribution reveals a left-skewed pattern with a concentration around 3.5-4.0 stars, suggesting overall customer satisfaction with most products performing above average, while very low ratings (1-2 stars) are relatively rare.
+
+**Discount Patterns:**
+
+- **Discount Range**: 1% to 87% off
+
+- **Mean & Median Discount**: mean: 50.26%, median: 53%
+
+- **Standard Deviation**: 16.89%
+
+See Figure 12 in the Appendix for the discount distribution histogram.
+
+The discount distribution shows a multimodal pattern with distinct peaks around 50% and 60%, and notable valleys around 35-40%, indicating varied pricing strategies across the product catalog. The concentration of products in the 40-70% range suggests aggressive discounting is common, with very few items offered at minimal discounts.
+
+See Figure 13 in the Appendix for the scatter plot showing the relationship between selling price and average rating.
+
+The scatter plot reveals no clear linear relationship between selling price and average rating, indicating that customer satisfaction is independent of price point (customers rate products based on quality and value rather than cost alone), with highly-rated products distributed across all price ranges.
+
+See Figure 14 in the Appendix for the correlation matrix of numeric fields.
+
+The correlation matrix shows a strong positive correlation between actual price and selling price (as expected), while average rating demonstrates weak correlations with price-related fields, confirming that customer satisfaction metrics operate independently from pricing strategies and discount levels.
+
+### 4.4 Categorical Field Analysis
+
+**Brand Distribution:**
+
+See Figures 15-16 in the Appendix for brand distribution analysis.
+
+The brand distribution reveals a highly fragmented market with no clear dominant players, as even the top brand holds only 13.0% market share. The relatively even distribution among the top 10 brands (ranging from 6.9% to 13.0%) indicates strong competitive diversity and a lack of market concentration in the fashion e-commerce space.
+
+**Category Analysis:**
+
+See Figures 17-18 in the Appendix for category and subcategory distribution charts.
+
+The category distributions show clear concentration patterns, with certain product categories (such as clothing and accessories) dominating the catalog. However, the subcategory breakdown reveals extreme concentration, with "topwear" accounting for 55.0% of products, followed distantly by "bottomwear" (13.2%) and "winter wear" (9.0%), indicating a highly skewed distribution toward upper body clothing rather than diverse fashion segments.
+
+**Seller Analysis:**
+
+See Figures 19-20 in the Appendix for seller distribution analysis.
+
+The seller distribution demonstrates a typical marketplace pattern with a few high-volume vendors accounting for the majority of products alongside numerous smaller sellers, suggesting a mix of established retailers and niche boutiques that collectively offer diverse product selections.
+
+**Stock Availability:**
+
+See Figure 21 in the Appendix for the out of stock distribution analysis.
+
+The stock availability distribution shows that the majority of products remain in stock, with a relatively small proportion of out-of-stock items, indicating effective inventory management practices that minimize missed sales opportunities while maintaining a diverse product catalog.
+
+
+### 4.5 Top Products Analysis
+
+**High-Value Products:**
+
+The top 5 products by price range from 9,999 to 12,999 in actual price, all belonging to the "clothing and accessories" category. Interestingly, these luxury items exhibit moderate to good average ratings (2.6 to 4.5 stars), indicating that higher price does not guarantee superior customer satisfaction. The discount patterns on premium products are inconsistent, with some showing significant markdowns (20-40%) while others have no discount data, suggesting varied pricing strategies even within the luxury segment. Notably, one of the most expensive items (9,999, brand "reeb") is currently out of stock despite its low rating of 2.7, possibly indicating either supply chain issues or clearance of underperforming inventory. It is remarkable that 4 out of 5 of these products are out of stock, indicating either that these products are not produced in mass (and hence their exclusivity) or that people love acquiring such high-standing items. 
+
+**Highly-Rated Products:**
+
+The top-rated products all achieve perfect 5.0-star ratings but are significantly more affordable than the luxury segment, with actual prices ranging from 770 to 2,799. This reinforces the earlier correlation analysis finding that customer satisfaction is independent of price point (quality and value perception matter more than absolute cost). All highly-rated items also fall within the "clothing and accessories" category, feature diverse brands (col, viking ine, tee bud, true bl), and show varied discount patterns from minimal (7%) to substantial (61%) markdowns. The presence of multiple discount strategies across top-rated products suggests that aggressive discounting is not a prerequisite for achieving excellent customer reviews, and that product quality and meeting customer expectations are the primary drivers of high ratings.
 
 ---
 
 ## 5. Conclusion
 
-This report documented the comprehensive data preparation and exploratory data analysis performed in Part 1 of the IRWA Final Project. We successfully:
+This report documented the comprehensive data preparation and exploratory data analysis performed in Part 1 of the Information Retrieval and Web Analysis Final Project. We successfully:
 
-### 1. Implemented a robust data preparation pipeline:
+#### 1. Implemented a robust data preparation pipeline:
 - Flexible data loading for different JSON formats
 - Comprehensive text cleaning and normalization
 - Multi-stage tokenization with stopword removal and stemming
 - Numeric and categorical field processing
 
-### 2. Developed a complete EDA framework:
+#### 2. Developed a complete EDA framework:
 - Dataset summary and quality assessment
 - Text statistics and vocabulary analysis
 - Numeric field distribution analysis
 - Categorical field analysis and visualization
 - Optional advanced features (word clouds, entity extraction)
 
-### 3. Generated actionable insights:
+#### 3. Generated actionable insights:
 - Understanding of dataset structure and quality
 - Identification of preprocessing requirements
 - Recognition of domain-specific characteristics
 - Foundations for IR system design decisions
 
-The processed dataset and analysis results are now ready for use in subsequent parts of the project, including:
-- **Part 2:** Indexing and search implementation
-- **Part 3:** Ranking and relevance feedback
-- **Part 4:** Evaluation and optimization
+The processed dataset and analysis results are now ready for use in subsequent parts of the project.
 
 All code is modular, well-documented, and reusable, following software engineering best practices for maintainability and extensibility.
 
----
-
-## Appendix: Code Structure
-
-### Data Preparation Notebook (`IRWA_Part1_Preparation.ipynb`)
-
-**Setup & Data Loading:**
-- `load_data()` - Load JSON/JSONL dataset
-- `inspect_data()` - Show basic info and samples
-
-**Text Cleaning:**
-- `clean_text()` - Lowercase, remove HTML, punctuation, digits, normalize
-
-**Tokenization:**
-- `tokenize_text()` - Split text into tokens
-- `remove_stopwords()` - Remove common stopwords
-- `stem_tokens()` - Apply stemming
-- `preprocess_text()` - Complete pipeline
-
-**Record Processing:**
-- `preprocess_product_details()` - Flatten nested structures
-- `normalize_numeric_fields()` - Convert numeric strings
-- `preprocess_record()` - Process single record
-- `preprocess_corpus()` - Process entire dataset
-
-**Export:**
-- `save_processed_data()` - Save to JSON/CSV
-- `summarize_preprocessing()` - Print statistics
+AI tools were used to assist in generating the overall structure of main functions and report formatting. However, the code architecture, analytical methodology, and all strategic decisions were entirely developed, reviewed, and validated by the project team. Every AI-generated function was manually revised, debugged, and fine-tuned to ensure correctness and alignment with project requirements. All analytical insights, interpretations, and conclusions in the report represent the team's understanding and work, AI assistance was limited to drafting and refining the text, as well as formatting properly for achieving a nice format. 
 
 ---
 
-### EDA Notebook (`IRWA_Part1_EDA.ipynb`)
+## Appendix: Figures
 
-**Data Loading:**
-- `load_processed_data()` - Load preprocessed data
+![Word cloud visualizations showing most frequent terms in title tokens](figures/wc_title.png)
 
-**Summary:**
-- `dataset_summary()` - Rows, columns, missing values, unique counts
+![Word cloud visualizations showing most frequent terms in description tokens](figures/wc_description.png)
 
-**Text Analysis:**
-- `text_stats()` - Avg tokens, vocab size
-- `most_common_tokens()` - Top frequent words
+![Word cloud visualizations showing most frequent terms in product details tokens](figures/wc_details.png)
 
-**Numeric Analysis:**
-- `numeric_summary()` - Min, max, mean, median, std
-- `plot_numeric_hist()` - Histogram visualization
-- `plot_price_vs_rating()` - Scatter plot
+![Word cloud visualizations showing most frequent terms in seller tokens](figures/wc_seller.png)
 
-**Categorical Analysis:**
-- `categorical_summary()` - Counts and percentages
-- `plot_categorical_bar()` - Bar chart
-- `plot_categorical_pie()` - Pie chart
+![Word cloud visualizations showing most frequent terms in category tokens](figures/wc_category.png)
 
-**Advanced (Optional):**
-- `generate_wordcloud()` - Word cloud visualization
-- `extract_entities()` - spaCy NER
+![Word cloud visualizations showing most frequent terms in sub category tokens](figures/wc_subcategory.png)
 
-**Reporting:**
-- `render_markdown_summary()` - Generate summary report
+![Word cloud visualizations showing most frequent terms in brand tokens](figures/wc_brand.png)
 
----
+![Word cloud visualizations showing most frequent terms in all tokens combined](figures/wc_all.png)
 
-### Output Artifacts
+![Histogram distribution of selling price](figures/hist_sell_price.png)
 
-- **Processed corpus:** JSONL/JSON format with cleaned text and tokens
-- **Vocabulary file:** Token frequencies across corpus
-- **Statistics summary:** Dataset metrics and distributions
-- **Visualizations:** Plots and charts (when plotting libraries available)
+![Histogram distribution of actual price](figures/hist_actual_price.png)
 
----
+![Histogram distribution of average rating](figures/hist_rating.png)
 
-**End of Report**
+![Histogram distribution of discount](figures/hist_discount.png)
 
+![Scatter plot showing relationship between selling price and average rating](figures/scatter_price_rating.png)
+
+![Correlation matrix of numeric fields](figures/corr_matrix.png)
+
+![Bar chart showing top brands by product count](figures/bar_brands.png)
+
+![Pie chart showing brand market share distribution](figures/pie_brands.png)
+
+![Category distribution chart](figures/bar_category.png)
+
+![Sub category distribution chart](figures/bar_subcategory.png)
+
+![Seller distribution bar chart](figures/bar_seller.png)
+
+![Seller distribution pie chart](figures/pie_seller.png)
+
+![Out of stock distribution analysis](figures/out_of_stock.png)

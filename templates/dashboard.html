@@ -1,30 +1,340 @@
 {% extends "base.html" %}
 {% block page_title %}{{ page_title }}{% endblock %}
 
-{% block header %}
-    <!-- Next tag loads Charts.js https://www.chartjs.org/docs/latest/ -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.6.2/chart.min.js"
-            integrity="sha512-tMabqarPtykgDtdtSqCL3uLVM0gS1ZkUAVhRFu1vSEFgvB73niFQWJuvviDyBGBH22Lcau4rHB5p2K2T0Xvr6Q=="
-            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-{% endblock %}
-
 {% block content %}
 
-    <!--
-    Examples of what to show in Dashboard:
+<h3 class="mb-4">Analytics Overview</h3>
 
-    - Ranking of visited documents (from results page)
-    - Visitor's preferred browsers
-    - Visitor's city (from IP)
-    - preferred queries ranking
-    - preferred terms
-    - etc.
+{% set key = analytics_summary.key_indicators %}
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <p class="text-muted mb-1">Total Requests</p>
+                <p class="display-6 mb-0">{{ key.total_requests }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <p class="text-muted mb-1">Total Sessions</p>
+                <p class="display-6 mb-0">{{ key.total_sessions }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <p class="text-muted mb-1">Total Queries</p>
+                <p class="display-6 mb-0">{{ key.total_queries }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <p class="text-muted mb-1">Zero-result Rate</p>
+                <p class="display-6 mb-0">{{ key.zero_result_rate }}%</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-    -->
+<div class="row g-3 mb-5">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">Avg Session Duration</p>
+                <p class="h2 mb-0">{{ key.avg_session_duration_seconds }}s</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">Avg Request Latency</p>
+                <p class="h2 mb-0">{{ key.avg_latency_ms }} ms</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">Avg Dwell Time</p>
+                <p class="h2 mb-0">{{ key.avg_dwell_time_ms }} ms</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">Active Sessions</p>
+                <p class="h2 mb-0">{{ analytics_summary.sessions.active_sessions }}</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-    <h3>Dashboard</h3>
-    <iframe src="/plot_number_of_views" width="600" height="400" style="border: none;"></iframe>
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Request Summary</h5>
+                <p class="mb-2"><strong>Total:</strong> {{ analytics_summary.requests.total_requests }}</p>
+                <p class="mb-3"><strong>Avg Latency:</strong> {{ analytics_summary.requests.avg_latency_ms }} ms</p>
+                <h6>Top Paths</h6>
+                <ul class="list-unstyled small">
+                    {% for item in analytics_summary.requests.top_paths %}
+                        <li>{{ item.path }}: {{ item.count }} hits</li>
+                    {% else %}
+                        <li>No traffic recorded yet.</li>
+                    {% endfor %}
+                </ul>
+                <h6>Status Codes</h6>
+                <ul class="list-unstyled small mb-0">
+                    {% for item in analytics_summary.requests.status_breakdown %}
+                        <li>HTTP {{ item.status }} ({{ 'OK' if item.status == 200 else 'Error' }}): {{ item.count }} requests</li>
+                    {% else %}
+                        <li>No status codes to display.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Session & Mission Insights</h5>
+                <p class="mb-1"><strong>Total Sessions:</strong> {{ analytics_summary.sessions.total_sessions }}</p>
+                <p class="mb-1"><strong>Missions Tracked:</strong> {{ analytics_summary.sessions.missions_tracked }}</p>
+                <p class="mb-3"><strong>Avg Duration:</strong> {{ analytics_summary.sessions.avg_duration_seconds }}s</p>
+                <h6 class="mb-2">Active Missions</h6>
+                <p class="text-muted small">Each “search journey” is the logical mission we auto-start for every analytics session.</p>
+                <ul class="list-unstyled small mb-0">
+                    {% for mission in analytics_summary.missions.missions %}
+                        <li>
+                            {{ mission.goal }}: {{ mission.queries }} queries
+                            {% if mission.duration_seconds %}
+                                <span class="text-muted">( {{ mission.duration_seconds }}s )</span>
+                            {% endif %}
+                        </li>
+                    {% else %}
+                        <li>No missions have been recorded yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
 
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Top Queries</h5>
+                <ul class="list-unstyled mb-0">
+                    {% for item in analytics_summary.top_queries %}
+                        <li><strong>{{ item.query }}</strong>: {{ item.count }} searches</li>
+                    {% else %}
+                        <li>No queries yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Recent Searches</h5>
+                <ul class="list-unstyled mb-0">
+                    {% for event in analytics_summary.recent_queries %}
+                        <li class="mb-2">
+                            <strong>{{ event.terms }}</strong>
+                            <small class="text-muted d-block">
+                                Browser: {{ event.browser }} • {{ event.timestamp }}
+                                {% if event.results_count is not none %}
+                                    • {{ event.results_count }} results
+                                {% endif %}
+                            </small>
+                        </li>
+                    {% else %}
+                        <li>No searches yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Browser Share</h5>
+                <ul class="list-unstyled small mb-0">
+                    {% for item in analytics_summary.browser_share %}
+                        <li>{{ item.browser }}: {{ item.count }} events</li>
+                    {% else %}
+                        <li>No traffic recorded yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Device Types</h5>
+                <ul class="list-unstyled small mb-0">
+                    {% for item in analytics_summary.devices %}
+                        <li>{{ item.device }}: {{ item.count }} events</li>
+                    {% else %}
+                        <li>No device data yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Operating Systems</h5>
+                <ul class="list-unstyled small mb-0">
+                    {% for item in analytics_summary.os %}
+                        <li>{{ item.os }}: {{ item.count }} events</li>
+                    {% else %}
+                        <li>No OS data yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Geo Distribution</h5>
+                <ul class="list-unstyled small mb-0">
+                    {% for item in analytics_summary.geo %}
+                        <li>{{ item.country }} / {{ item.city }}: {{ item.count }}</li>
+                    {% else %}
+                        <li>No geo data captured.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Top Brands by Clicks</h5>
+                <ul class="list-unstyled mb-0">
+                    {% for item in analytics_summary.top_brands %}
+                        <li>{{ item.brand }}: {{ item.count }} clicks</li>
+                    {% else %}
+                        <li>No brand clicks recorded yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Price Sensitivity</h5>
+                <ul class="list-unstyled mb-0">
+                    {% for item in analytics_summary.price_buckets %}
+                        <li><strong>{{ item.bucket }}</strong>: {{ item.count }} clicks ({{ item.share }}%)</li>
+                    {% else %}
+                        <li>No clicks recorded yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">Click Behaviour</h5>
+                <p class="mb-1"><strong>Total Clicks:</strong> {{ analytics_summary.clicks.total_clicks }}</p>
+                <p class="mb-3"><strong>Avg Dwell:</strong> {{ analytics_summary.clicks.avg_dwell_time_ms }} ms</p>
+                <h6>Ranking Positions</h6>
+                <ul class="list-unstyled small mb-3">
+                    {% for item in analytics_summary.clicks.ranking_breakdown %}
+                        <li>{{ item.rank }}: {{ item.count }}</li>
+                    {% else %}
+                        <li>No click data yet.</li>
+                    {% endfor %}
+                </ul>
+                <h6>Dwell Statistics</h6>
+                <p class="small mb-0">
+                    min {{ analytics_summary.dwell_stats.min_ms }} ms •
+                    median {{ analytics_summary.dwell_stats.median_ms }} ms •
+                    max {{ analytics_summary.dwell_stats.max_ms }} ms •
+                    p90 {{ analytics_summary.dwell_stats.p90_ms }} ms
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Most Clicked Documents</h5>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Description</th>
+                        <th>Clicks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in visited_docs %}
+                        <tr>
+                            <td class="fw-semibold">{{ doc.title }}</td>
+                            <td class="text-truncate" style="max-width: 350px;">{{ doc.description }}</td>
+                            <td>{{ doc.counter }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No clicks recorded yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% set chart_order = [
+    ('views', 'Document Views'),
+    ('sessions_by_hour', 'Sessions by Hour'),
+    ('status_codes', 'Request Status'),
+    ('dwell_hist', 'Dwell Time'),
+    ('price_sensitivity', 'Price Sensitivity'),
+    ('top_brands', 'Top Brands')
+] %}
+
+{% for key_label in chart_order %}
+    {% set key = key_label[0] %}
+    <div class="row g-4 mt-1">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {{ charts[key] | safe }}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
 
 {% endblock %}
 

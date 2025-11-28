@@ -1,18 +1,236 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Document Detail - IRWA Search Engine</title>
-</head>
-<body>
-<div><a href="/" >Home</a></div>
-<div><a href="/stats" >Stats</a></div>
-<div><a href="/dashboard" >Dashboard</a></div>
-<h1>Document Detail Page</h1>
-<p>This is a placeholder for document details.</p>
-<p>Here you can display more information about the document.</p>
-<p>For example, you might show the full text of the document, metadata, or other relevant details.</p>
-<p>You can also include links to related documents or resources.</p>
-<p>Feel free to customize this page to fit the needs of your application.</p>
-</body>
-</html>
+{% extends "base.html" %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block content %}
+    {% if error %}
+        <div class="alert alert-danger" role="alert">
+            {{ error }}
+        </div>
+        <a href="/" class="btn btn-primary">Return to Home</a>
+    {% else %}
+        <div class="doc-details-container">
+            <div class="mb-3">
+                <a href="/" class="btn btn-secondary">← Back to Search</a>
+                {% if last_search_query %}
+                    <form method="POST" action="/search" style="display: inline-block; margin-left: 10px;">
+                        <input type="hidden" name="search-query" value="{{ last_search_query }}">
+                        {% if last_ranking_method %}
+                            <input type="hidden" name="ranking-method" value="{{ last_ranking_method }}">
+                        {% endif %}
+                        <button type="submit" class="btn btn-primary">← Back to Results</button>
+                    </form>
+                {% endif %}
+            </div>
+            
+            <div class="doc-header mb-4">
+                <h1 class="doc-title-detail">{{ doc.title }}</h1>
+                {% if doc.pid %}
+                    <p class="text-muted">Product ID: {{ doc.pid }}</p>
+                {% endif %}
+            </div>
+            
+            <div class="row">
+                <div class="col-md-8">
+                    {% if doc.images and doc.images|length > 0 %}
+                        <div class="doc-images mb-4">
+                            <img src="{{ doc.images[0] }}" alt="{{ doc.title }}" class="img-fluid rounded clickable-image" style="max-width: 100%; height: auto; cursor: pointer;" onclick="openImageModal('{{ doc.images[0] }}')">
+                            {% if doc.images|length > 1 %}
+                                <div class="mt-2" style="font-size: 0.85em; color: #70757a;">
+                                    <strong>Additional Images ({{ doc.images|length - 1 }}):</strong>
+                                    <div class="mt-2">
+                                        {% for image in doc.images[1:6] %}
+                                            <img src="{{ image }}" alt="Product image {{ loop.index + 1 }}" class="img-thumbnail mr-2 mb-2 clickable-image" style="max-width: 100px; height: auto; margin-right: 10px; cursor: pointer;" onclick="openImageModal('{{ image }}')">
+                                        {% endfor %}
+                                        {% if doc.images|length > 6 %}
+                                            <span class="text-muted">+ {{ doc.images|length - 6 }} more</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="doc-section mb-4">
+                        <h3>Description</h3>
+                        <p class="doc-description-full">{{ description }}</p>
+                    </div>
+                    
+                    {% if product_details %}
+                        <div class="doc-section mb-4">
+                            <h3>Product Details</h3>
+                            <dl class="row">
+                                {% for key, value in product_details.items() %}
+                                    <dt class="col-sm-4">{{ key|title }}:</dt>
+                                    <dd class="col-sm-8">{{ value }}</dd>
+                                {% endfor %}
+                            </dl>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Additional Information (Less Prominent) -->
+                    <div class="doc-section mb-4" style="border-top: 2px solid #e8eaed; padding-top: 20px; margin-top: 30px;">
+                        <h4 style="font-size: 1.1em; color: #70757a; margin-bottom: 15px;">Additional Information</h4>
+                        <div class="row" style="font-size: 0.9em; color: #70757a;">
+                            {% if doc.pid %}
+                                <div class="col-md-6 mb-2"><strong>Product ID:</strong> {{ doc.pid }}</div>
+                            {% endif %}
+                            {% if doc.crawled_at %}
+                                <div class="col-md-6 mb-2"><strong>Crawled At:</strong> {{ doc.crawled_at }}</div>
+                            {% endif %}
+                            {% if doc._id %}
+                                <div class="col-md-6 mb-2"><strong>Document ID:</strong> {{ doc._id }}</div>
+                            {% endif %}
+                            {% if doc.full_text and doc.full_text != description %}
+                                <div class="col-12 mb-2">
+                                    <strong>Full Text:</strong> 
+                                    <span style="font-size: 0.85em;">{{ doc.full_text[:300] }}{% if doc.full_text|length > 300 %}...{% endif %}</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="doc-sidebar">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Pricing</h5>
+                                {% if doc.selling_price %}
+                                    <p class="card-text">
+                                        <strong style="font-size: 1.5em; color: #137333;">₹{{ doc.selling_price|round(2) }}</strong>
+                                        {% if doc.actual_price and doc.actual_price > doc.selling_price %}
+                                            <br><span style="text-decoration: line-through; color: #999;">₹{{ doc.actual_price|round(2) }}</span>
+                                        {% endif %}
+                                    </p>
+                                    {% if doc.discount %}
+                                        <span class="badge bg-success">{{ doc.discount|round(0)|int }}% OFF</span>
+                                    {% endif %}
+                                {% else %}
+                                    <p class="card-text text-muted">Price not available</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Product Information</h5>
+                                <ul class="list-unstyled">
+                                    {% if doc.brand %}
+                                        <li class="mb-2"><strong>Brand:</strong> {{ doc.brand }}</li>
+                                    {% endif %}
+                                    {% if doc.category %}
+                                        <li class="mb-2"><strong>Category:</strong> {{ doc.category }}</li>
+                                    {% endif %}
+                                    {% if doc.sub_category %}
+                                        <li class="mb-2"><strong>Sub-category:</strong> {{ doc.sub_category }}</li>
+                                    {% endif %}
+                                    {% if doc.seller %}
+                                        <li class="mb-2"><strong>Seller:</strong> {{ doc.seller }}</li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Rating & Availability</h5>
+                                {% if doc.average_rating %}
+                                    <p class="card-text">
+                                        <span style="color: #fbbc04; font-size: 1.2em;">★</span>
+                                        <strong>{{ doc.average_rating|round(1) }}</strong> / 5.0
+                                    </p>
+                                {% else %}
+                                    <p class="card-text text-muted">No rating available</p>
+                                {% endif %}
+                                
+                                {% if doc.out_of_stock %}
+                                    <span class="badge bg-danger">Out of Stock</span>
+                                {% else %}
+                                    <span class="badge bg-success">In Stock</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if doc.url %}
+                            <div class="card">
+                                <div class="card-body">
+                                    <a href="{{ doc.url }}" target="_blank" class="btn btn-primary w-100">
+                                        View on Original Website →
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    
+    <!-- Image Modal -->
+    <div id="imageModal" class="image-modal" onclick="closeImageModal()" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); cursor: pointer; overflow: auto;">
+        <span class="close-modal" onclick="event.stopPropagation(); closeImageModal()" style="position: absolute; top: 15px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 10000;">&times;</span>
+        <div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 20px; box-sizing: border-box;">
+            <img class="modal-content" id="modalImage" onclick="event.stopPropagation();" style="max-width: 98%; max-height: 98vh; width: auto; height: auto; object-fit: contain; margin: auto; display: block;">
+        </div>
+    </div>
+    
+    <script>
+        function openImageModal(imageSrc) {
+            var modal = document.getElementById("imageModal");
+            var modalImg = document.getElementById("modalImage");
+            modal.style.display = "block";
+            modalImg.src = imageSrc;
+        }
+        
+        function closeImageModal() {
+            document.getElementById("imageModal").style.display = "none";
+        }
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeImageModal();
+            }
+        });
+        
+        (function () {
+            const docId = "{{ doc.pid|default('') }}";
+            if (!docId) {
+                return;
+            }
+            const searchId = "{{ search_id|default('') }}";
+            const startTime = performance.now();
+            let sent = false;
+
+            function sendDwellTime() {
+                if (sent) {
+                    return;
+                }
+                sent = true;
+                const dwellMs = Math.max(0, Math.round(performance.now() - startTime));
+                const payload = JSON.stringify({
+                    doc_id: docId,
+                    search_id: searchId || null,
+                    dwell_ms: dwellMs
+                });
+                const blob = new Blob([payload], {type: 'application/json'});
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/track_dwell', blob);
+                } else {
+                    fetch('/track_dwell', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: payload,
+                        keepalive: true
+                    });
+                }
+            }
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    sendDwellTime();
+                }
+            });
+            window.addEventListener('beforeunload', sendDwellTime);
+        })();
+    </script>
+{% endblock %}

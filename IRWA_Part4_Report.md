@@ -17,13 +17,17 @@
    - 2.4 [Document Details Page](#24-document-details-page)
 3. [RAG Implementation](#3-rag-implementation)
 4. [Web Analytics](#4-web-analytics)
-5. [Conclusion](#5-conclusion)
+5. [Final Integration](#5-final-integration)
+   - 5.1 [Data maturity from Part 1](#51-data-maturity-from-part-1)
+   - 5.2 [Retrieval depth from Parts 2 and 3](#52-retrieval-depth-from-parts-2-and-3)
+   - 5.3 [User experience, guidance, and observability](#53-user-experience-guidance-and-observability)
+   - 5.4 [A unified platform](#54-a-unified-platform)
 
 ---
 
 ## 1. Introduction
 
-This report documents the implementation of Part 4 of the IRWA Final Project, which focuses on creating a complete web application with Retrieval-Augmented Generation (RAG), a user-friendly interface, and web analytics capabilities. The application provides users with an intuitive search interface for fashion products, AI-powered recommendations, and comprehensive usage statistics.
+This report documents the implementation of Part 4 of the IRWA Final Project, which focuses on creating a complete web application with Retrieval-Augmented Generation (RAG), a user-friendly interface, and web analytics capabilities. The application provides users with an intuitive search interface for fashion products, AI-powered recommendations, and comprehensive usage statistics. The report will mainly cover the additional implementations made by the team, without giving so much emphasis to the already provided structure.
 
 ---
 
@@ -31,15 +35,15 @@ This report documents the implementation of Part 4 of the IRWA Final Project, wh
 
 ### 2.1 Search Page
 
-The search page was enhanced to provide a better user experience. The HTML structure was reorganized to create a more prominent and centered search interface. A descriptive page title was added above the search form to guide users. The search input field was made more prominent with improved sizing and clearer placeholder text. The form layout was restructured to ensure proper alignment between the input field and search button.
+The search page was enhanced to provide a better user experience. A centered layout keeps the hero title, query box, algorithm selector, and action button within the same flex group so the whole form feels like a single control. We also allowed the user to select the ranking he wants to use: a dropdown placed next to the input lets users switch between TF‑IDF, BM25, Word2Vec, or our custom hybrid ranker before every query, and the last choice is persisted in the session so the page remembers your preferred scorer. We also added a lightweight geo-consent prompt that stores the visitor’s country/city (only if accepted) in hidden inputs; these values flow straight into the analytics pipeline without any extra clicks.
 
 Client-side validation was implemented to prevent users from submitting empty queries, replacing the previous non-functional validation. Additional CSS styling was added to improve the visual presentation, including better centering of the search interface, responsive design considerations, and enhanced visual feedback through focus states and hover effects.
 
 ### 2.2 Search Algorithms Integration
 
-The search functionality was integrated with the TF-IDF ranking algorithm developed in Part 2. A new `SearchAlgorithm` class was created in `myapp/search/algorithms.py` to wrap the TF-IDF ranker and inverted index, making them suitable for web application use. The implementation loads the processed corpus data (which contains preprocessed tokens) and builds the inverted index at initialization time for optimal performance.
+The search functionality was integrated with the ranking stack developed in Parts 2 and 3. A new `SearchAlgorithm` class was created in `myapp/search/algorithms.py` to wrap the TF-IDF, BM25, Word2Vec, and custom hybrid rankers plus the shared inverted index, making them suitable for web application use. The implementation loads the processed corpus data (which contains preprocessed tokens) and builds the inverted index at initialization time for optimal performance.
 
-The `SearchEngine` class was refactored to use the integrated search algorithm instead of the dummy random search. The search process now performs proper query preprocessing, conjunctive query filtering, and TF-IDF-based ranking to return the most relevant results. The algorithm is initialized once at application startup, ensuring fast response times for user queries. We later extracted the preprocessing pipeline into `myapp/search/preprocessing.py` so that incoming queries are cleaned, stopword-filtered, and stemmed with the exact same rules used during corpus creation; this solved issues where queries like “jeans” and “jean” previously hit different vocab entries even though they should resolve to the same stem.
+The `SearchEngine` class was refactored to use the integrated search algorithm instead of the dummy random search. The search process now performs proper query preprocessing, conjunctive query filtering, and ranking with whichever method the user selected to return the most relevant results. The algorithm is initialized once at application startup, ensuring fast response times for user queries. We later extracted the preprocessing pipeline into `myapp/search/preprocessing.py` so that incoming queries are cleaned, stopword-filtered, and stemmed with the exact same rules used during corpus creation; this solved issues where queries like “jeans” and “jean” previously hit different vocab entries even though they should resolve to the same stem.
 
 To ensure accurate result display, the search engine retrieves document data directly from the processed corpus used for indexing, rather than a separate display corpus. This guarantees that all document fields (including descriptions, metadata, and product details) are available and consistent with the indexed data. A fallback mechanism was implemented for description fields: if the primary description is missing, the system falls back to the full text field, and if that is also unavailable, it uses the title as a last resort.
 
@@ -112,7 +116,7 @@ To measure the effect of each change we recorded the UI after every iteration an
 
 ### 3.4 Conclusion
 
-Changing only the card layout already lifted perceived quality because the summary became scannable without altering the text. Switching between Groq and OpenAI showed that the Groq model is faster and concise while OpenAI is wordier and spots softer attributes such as fabric or styling. The prompt rewrite was the most impactful tweak: regardless of the model, it forced explicit reasoning about rating, pricing, and stock so the assistant now surfaces trade-offs the user would otherwise miss. Together these steps gave us a RAG module that is explainable, visually consistent, and adaptable to different LLM providers.
+Changing only the card layout already lifted perceived quality because the summary became scannable without altering the text. Switching between Groq and OpenAI showed that the Groq model is faster and concise while OpenAI is wordier and spots softer attributes such as fabric or styling. The prompt rewrite was the most impactful tweak: regardless of the model, it forced explicit reasoning about rating, pricing, and stock so the assistant now surfaces trade-offs the user would otherwise miss. Combined with analytics that capture which provider generated each summary and how users interact with it, we can now correlate perceived usefulness with latency and verbosity. Together these steps gave us a RAG module that is explainable, visually consistent, and adaptable to different LLM providers while remaining measurable in production.
 
 
 ## 4. Web Analytics
@@ -160,4 +164,57 @@ Because every widget and chart is fed from the same `AnalyticsData` snapshot, re
 ---
 
 ***AI Use*: For Part 4 we relied on AI tools mainly to draft small text passages and to propose wording tweaks for the UI. All backend code, analytics instrumentation, dashboard logic, and the final write-up were designed and validated by the team. We reviewed and adjusted every AI suggestion before including it.**
+We extended `AnalyticsData` into an in-memory star schema (a data model with fact tables surrounded by dimension tables) that captures every relevant interaction described in the statement:
+
+1. **HTTP requests:** `record_request` captures method, path, status code, latency (time spent serving a request), bytes sent, and the associated session identifier so we can reason about reliability issues and detect “hot” endpoints.
+2. **Sessions and missions:** `start_session` and `start_mission` let us differentiate physical sessions (a sit-down tracked with a timeout-based heuristic) from logical missions (a sequence of related queries). For simplicity we automatically start one mission whenever a new analytics session begins and reuse it for all searches during that sit-down, which keeps the mapping deterministic without asking the user to label their intent. Sessions track visitor attributes such as user agent, operating system, device type, IP address, and optional country/city. Geo data is collected with a client-side consent prompt that calls `ipapi.co`; the chosen country/city is cached in the session so all subsequent requests inherit it.
+3. **Queries:** Every POST to `/search` calls `save_query_terms`, which normalizes the text, records the number of terms, order-of-arrival within the session/mission, and links the query to the visitor context mentioned above. Once ranking completes, `update_query_results` stores the result count so we can compute the zero-result rate.
+4. **Results and clicks:** `register_click` accepts either Pydantic documents or plain dictionaries and records the clicked product identifier, title, brand, category, price bucket, rank position (the ordering that the engine displayed), and a dwell time placeholder. A JavaScript beacon on the document details page sends the actual dwell time when the user navigates away, and `update_click_dwell` patches the click record accordingly. Each click also keeps a pointer to the originating query so attribution is preserved.
+5. **Visitor context:** `_update_context_counters` classifies device type, OS, and geography (including “Unknown” if the user declines sharing) and buckets activity by hour of day. `_find_active_session` merges consecutive requests from the same visitor into a single session until a configurable timeout elapses.
+
+All collectors append to Python data classes (`SessionRecord`, `MissionRecord`, `RequestRecord`, `QueryRecord`, `ClickRecord`), which makes the instrumentation deterministic and reproducible without external databases.
+
+### 4.2 Data storage model
+
+The star schema consists of three main fact tables:
+
+- **Request fact** (`fact_requests`): every HTTP interaction with latency statistics and status code counters for uptime reporting.
+- **Session fact** (`sessions` + `missions`): holds physical sessions, logical missions, and sequencing metadata (order of queries, mission goals, session start/end timestamps, and inferred dwell times).
+- **Click fact** (`fact_click_events`): attribution-ready click rows that join back to queries and sessions for multi-dimensional breakdowns.
+
+Dimension-like counters (browser share, device share, OS share, geographic pairs, price buckets) are kept in `Counter` collections so dashboards can aggregate them quickly. This mirrors a traditional analytics warehouse while remaining easy to reset during grading.
+
+### 4.3 Dashboard and indicators
+
+The `/dashboard` endpoint pulls every aggregation into a single `analytics_summary` dictionary and a `charts` bundle so the template can focus on layout. The page is split into three layers:
+
+1. **KPI cards and tables** – Total requests, sessions, queries, zero-result rate, average latency/session/dwell, active missions, request status breakdown, top paths, device share, OS share, geo distribution, top queries, recent queries, price buckets, click behaviour (including ranking positions and dwell percentiles), and a “most clicked documents” table (title + description fallback). We also annotate the mission section with a short reminder that each “search journey” corresponds to the auto-started mission per session.
+2. **Charts powered by Altair/Vega-Lite** – We render reusable specifications for document views vs clicks, sessions by hour, HTTP status distribution, dwell-time histogram, price sensitivity pie (with percentage labels), and top brands. Charts are embedded via `vegaEmbed` with custom sizing so they stack vertically and fit the page width.
+3. **Request/session instrumentation** – Every route (`/`, `/search`, `/doc_details`, `/stats`, `/dashboard`, `/track_dwell`) now bootstraps the analytics session, logs the HTTP request, and forwards the visitor context to `AnalyticsData`. The search results template includes the rank position inside the `/doc_details` link, ensuring clicks are attributed to their slot. The document-details page hosts the dwell-time beacon and exposes the `search_id` so clicks link back to queries.
+
+Because all metrics and charts read from the same in-memory warehouse, instructors can replay traffic in their environment and instantly see the dashboard update without provisioning external services.
+
+## 5. Final Integration
+
+Part 4 is the moment where every prior milestone stops being an academic artifact and becomes a living product. The polished interface, the RAG assistant, and the analytics dashboard only exist because they stand on top of the foundations poured throughout Parts 1–3. This section summarizes how those layers interlock and why the end result feels cohesive rather than pieced together.
+
+### 5.1 Data maturity from Part 1
+
+The exploratory analysis and cleaning pipelines from Part 1 provide more than descriptive stats: they define the canonical dataset for the entire application. The same processed corpus that powered the EDA now feeds the inverted index, template fields, product galleries, and fallback descriptions. Because we preserved tokenized text, metadata normalization, and brand/category taxonomies, the UI can trust that every document is display-ready and that analytics dimensions (e.g., price buckets, geo filters) align with the earlier data definitions. 
+
+### 5.2 Retrieval depth from Parts 2 and 3
+
+Part 2 delivered the TF‑IDF baseline, evaluation metrics, and the discipline to measure relevance beyond anecdote. Part 3 expanded that toolbox with BM25, Word2Vec cosine, and a hybrid scorer, plus scripts to compare them under identical queries. Part 4 takes those rankers out of simple scripts and exposes them to real users: the selector on the homepage is wired to `SearchAlgorithm.get_available_methods()`, the results view labels the active method, and the analytics session records every choice so we can study zero-result rates or dwell time by algorithm. The rankers run against the same inverted index and preprocessing pipeline the experiments used, which means our classroom research became production infrastructure with almost no translation cost.
+
+### 5.3 User experience, guidance, and observability
+
+With the backend capabilities unified, Part 4 focused on packaging them into an experience that feels intentional. The search page lets visitors choose ranking strategies, gives context on optional geo collection, and guarantees accessible interactions through validation and responsive design. The RAG summary block translates raw ranking output into recommendations that cite price, rating, and stock considerations, while the document-details view completes the journey with image modals, back-navigation that preserves the original query, and dwell-time beacons for analytics. Finally, the dashboard aggregates every trace: requests, missions, queries, clicks, dwell times, so instructors can replay traffic and evaluate both retrieval quality and UX behavior without additional tooling.
+
+### 5.4 A unified platform
+
+Seen together, these contributions convert a set of incremental deliverables into a fully instrumented search product. Part 1 guarantees trustworthy data, Parts 2 and 3 supply interchangeable ranking brains, and Part 4 adds the body: a responsive interface, AI guidance, and measurement hooks. The course thus culminates in a platform that not only retrieves fashion products accurately but also explains its reasoning, adapts to user preferences, and surfaces the evidence required to iterate further. This is the holistic showcase of everything the team built over the term.
+
+---
+
+***AI Use*: AI tools were used to help design the general structure of some functions. However, the code logic, analysis approach, test queries, and relevance judgments were fully developed and verified by the team. All AI-generated parts were carefully reviewed, corrected, and adjusted to meet the project requirements. The insights, interpretations, and conclusions presented in this report are entirely the team’s own work.**
 

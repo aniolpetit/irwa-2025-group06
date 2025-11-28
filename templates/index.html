@@ -1,18 +1,89 @@
 {% extends "base.html" %}
 {% block page_title %}{{ page_title }}{% endblock %}
 {% block content %}
-    <div class="centered">
-        <p>&nbsp;</p>
-        <p>&nbsp;</p>
-        <p>&nbsp;</p>
-        <form class="d-flex" method="POST" onSubmit='return validate();' action="/search">
-            <input class="form-control me-2" name="search-query" type="search" placeholder="Search" aria-label="Search"
-                   autofocus="autofocus">
-            <button class="btn btn-primary" type="submit" onclick='this.form.submit();'>Search</button>
-            <input name="upf-irwa-hidden" type="hidden" value="123">
-        </form>
-        <p>&nbsp;</p>
-        <p>&nbsp;</p>
-        <p>&nbsp;</p>
+    <div class="search-container">
+        <div class="search-wrapper">
+            <h2 class="search-title">Search Fashion Products</h2>
+            <form class="search-form" method="POST" action="/search" onsubmit="return validateSearch();">
+                <div class="input-group">
+                    <input class="form-control search-input" 
+                           name="search-query" 
+                           type="search" 
+                           placeholder="Enter your search query..." 
+                           aria-label="Search"
+                           autofocus="autofocus"
+                           required>
+                    <select class="form-select ranking-select" name="ranking-method" aria-label="Select ranking method">
+                        {% for method in ranking_methods %}
+                            <option value="{{ method.id }}" {% if method.id == selected_ranking_method %}selected{% endif %}>
+                                {{ method.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-primary search-button" type="submit">Search</button>
+                </div>
+                <input name="upf-irwa-hidden" type="hidden" value="123">
+                <input type="hidden" name="country" id="geo-country">
+                <input type="hidden" name="city" id="geo-city">
+                <input type="hidden" name="geo_source" id="geo-source" value="unknown">
+            </form>
+            <p class="text-muted small mt-2" id="geo-consent-note" style="display: none;">
+                Sharing your approximate location (country/city only) helps us analyse usage patterns. You can decline and we will mark it as "Unknown".
+            </p>
+        </div>
     </div>
+    <script>
+        function validateSearch() {
+            const query = document.querySelector('input[name="search-query"]').value.trim();
+            if (query === '') {
+                alert('Please enter a search query.');
+                return false;
+            }
+            return true;
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            const countryInput = document.getElementById('geo-country');
+            const cityInput = document.getElementById('geo-city');
+            const sourceInput = document.getElementById('geo-source');
+            const consentNote = document.getElementById('geo-consent-note');
+
+            function applyGeo(country, city, source) {
+                if (!countryInput || !cityInput || !sourceInput) return;
+                countryInput.value = country || '';
+                cityInput.value = city || '';
+                sourceInput.value = source || 'unknown';
+                sessionStorage.setItem('geoCountry', country || '');
+                sessionStorage.setItem('geoCity', city || '');
+                sessionStorage.setItem('geoSource', source || 'unknown');
+                sessionStorage.setItem('geoPromptHandled', 'true');
+            }
+
+            const storedCountry = sessionStorage.getItem('geoCountry');
+            const storedCity = sessionStorage.getItem('geoCity');
+            const storedSource = sessionStorage.getItem('geoSource');
+            const promptHandled = sessionStorage.getItem('geoPromptHandled');
+            if (promptHandled) {
+                applyGeo(storedCountry || '', storedCity || '', storedSource || 'session');
+                return;
+            }
+
+            if (consentNote) {
+                consentNote.style.display = 'block';
+            }
+
+            if (!window.confirm('Share your approximate location (country/city only) for analytics?')) {
+                applyGeo('', '', 'declined');
+                return;
+            }
+
+            fetch('https://ipapi.co/json/')
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    applyGeo(data.country_name || '', data.city || '', 'ipapi');
+                })
+                .catch(function () {
+                    applyGeo('', '', 'lookup_failed');
+                });
+        });
+    </script>
 {% endblock %}
